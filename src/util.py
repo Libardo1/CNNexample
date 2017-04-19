@@ -2,6 +2,7 @@ from six.moves import cPickle as pickle
 import numpy as np
 import os
 import unittest
+import time
 
 
 def run_test(testClass, header):
@@ -13,6 +14,18 @@ def run_test(testClass, header):
     print(header)
     suite = unittest.TestLoader().loadTestsFromTestCase(testClass)
     unittest.TextTestRunner(verbosity=2).run(suite)
+
+
+def accuracy(predictions, labels):
+    comparisson = np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1))
+    return (100.0 * comparisson / predictions.shape[0])
+
+
+def get_log():
+    log_basedir = 'logs'
+    run_label = time.strftime('%d-%m-%Y_%H-%M-%S')
+    log_path = os.path.join(log_basedir, run_label)
+    return log_path
 
 
 def get_data():
@@ -45,12 +58,3 @@ def get_data_4d():
     valid_dataset, valid_labels = reformat_4d(valid_dataset, valid_labels)
     test_dataset, test_labels = reformat_4d(test_dataset, test_labels)
     return train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels
-
-def main():
-    train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels = get_data_4d()
-    print('Training:', train_dataset.shape, train_labels.shape)
-    print('Validation:', valid_dataset.shape, valid_labels.shape)
-    print('Testing:', test_dataset.shape, test_labels.shape)
-
-if __name__ == "__main__":
-    main()
