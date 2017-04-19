@@ -40,7 +40,9 @@ class Config():
                  hidden_nodes_1=60,
                  hidden_nodes_2=40,
                  hidden_nodes_3=20,
-                 learning_rate=0.9):
+                 learning_rate=0.9,
+                 steps_for_decay=100,
+                 decay_rate=0.96):
         """
         :type batch_size: int
         :type patch_size: int
@@ -52,6 +54,8 @@ class Config():
         :type hidden_nodes_2: int
         :type hidden_nodes_3: int
         :type learning_rate: float
+        :type steps_for_decay: float
+        :type decay_rate: float
         """
         self.batch_size = batch_size
         self.patch_size = patch_size
@@ -64,6 +68,8 @@ class Config():
         self.hidden_nodes_2 = hidden_nodes_2
         self.hidden_nodes_3 = hidden_nodes_3
         self.learning_rate = learning_rate
+        self.steps_for_decay = steps_for_decay
+        self.decay_rate = decay_rate
 
 
 class CNNModel:
@@ -86,6 +92,8 @@ class CNNModel:
             self.hidden_nodes_2 = self.config.hidden_nodes_2
             self.hidden_nodes_3 = self.config.hidden_nodes_3
             self.learning_rate = self.config.learning_rate
+            self.steps_for_decay = self.config.steps_for_decay
+            self.decay_rate = self.config.decay_rate
             self.build_graph()
 
     def create_placeholders(self):
@@ -104,11 +112,11 @@ class CNNModel:
                                               shape=shape_Y,
                                               name=name_Y)
 
-    def init_weights_biases(self, shape, weights_name, biases_name):
+    def init_weights_bias(self, shape, weights_name, bias_name):
         layer = {'weights': tf.Variable(tf.truncated_normal(shape, stddev=0.1),
                                         name=weights_name),
-                 'biases': tf.Variable(tf.zeros(shape[-1]),
-                                       name=biases_name)}
+                 'bias': tf.Variable(tf.zeros(shape[-1]),
+                                     name=bias_name)}
         return layer
 
     def create_all_weights_bias(self):
@@ -116,35 +124,35 @@ class CNNModel:
                       self.patch_size,
                       self.num_channels,
                       self.num_filters_1]
-            self.conv_layer_1_wb = self.init_weights_biases(shape1,
-                                                            "weights1",
-                                                            "biases1")
+            self.conv_layer_1_wb = self.init_weights_bias(shape1,
+                                                          "weights1",
+                                                          "bias1")
 
             shape2 = [self.patch_size,
                       self.patch_size,
                       self.num_filters_1,
                       self.num_filters_2]
-            self.conv_layer_2_wb = self.init_weights_biases(shape2,
-                                                            "weights2",
-                                                            "biases2")
+            self.conv_layer_2_wb = self.init_weights_bias(shape2,
+                                                          "weights2",
+                                                          "bias2")
             flat = self.image_size // 4 * self.image_size // 4 * self.num_filters_2
             shape3 = [flat, self.hidden_nodes_1]
-            self.fully_hidden_layer_1 = self.init_weights_biases(shape3,
-                                                                 "weights3",
-                                                                 'biases3')
+            self.fully_hidden_layer_1 = self.init_weights_bias(shape3,
+                                                               "weights3",
+                                                               "bias3")
             shape4 = [self.hidden_nodes_1, self.hidden_nodes_2]
-            self.fully_hidden_layer_2 = self.init_weights_biases(shape4,
-                                                                 "weights4",
-                                                                 'biases4')
+            self.fully_hidden_layer_2 = self.init_weights_bias(shape4,
+                                                               "weights4",
+                                                               "bias4")
 
             shape5 = [self.hidden_nodes_2, self.hidden_nodes_3]
-            self.fully_hidden_layer_3 = self.init_weights_biases(shape5,
-                                                                 "weights5",
-                                                                 'biases5')
+            self.fully_hidden_layer_3 = self.init_weights_bias(shape5,
+                                                               "weights5",
+                                                               "bias5")
             shape6 = [self.hidden_nodes_3, self.num_labels]
-            self.fully_hidden_layer_4 = self.init_weights_biases(shape6,
-                                                                 "weights6",
-                                                                 'biases6')
+            self.fully_hidden_layer_4 = self.init_weights_bias(shape6,
+                                                               "weights6",
+                                                               "bias6")
 
     def create_summaries(self):
         """
@@ -172,7 +180,7 @@ class CNNModel:
             """
 
             weights = layer['weights']
-            biases = layer['biases']
+            bias = layer['bias']
 
             # Create the TensorFlow operation for convolution.
             # Note the strides are set to 1 in all dimensions.
@@ -188,9 +196,9 @@ class CNNModel:
                                       strides=[1, 1, 1, 1],
                                       padding='SAME')
 
-            # Add the biases to the results of the convolution.
+            # Add the bias to the results of the convolution.
             # A bias-value is added to each filter-channel.
-            conv_layer += biases
+            conv_layer += bias
             # Use pooling to down-sample the image resolution?
             if use_pooling:
                 # This is 2x2 max-pooling, which means that we
@@ -211,7 +219,7 @@ class CNNModel:
         Method to computing linear activation
         """
         return tf.add(tf.matmul(input_tensor, layer['weights']),
-                      layer['biases'])
+                      layer['bias'])
 
     def forward_prop(self,
                      input_tensor,
@@ -279,8 +287,8 @@ class CNNModel:
         with tf.name_scope("train"):
             self.optimizer = self.sgd_train(self.loss,
                                             self.learning_rate,
-                                            100,
-                                            0.96)
+                                            self.steps_for_decay,
+                                            self.decay_rate)
 
     def create_predictions(self):
         self.train_prediction = tf.nn.softmax(self.logits,
@@ -402,4 +410,4 @@ if __name__ == "__main__":
                    test_dataset,
                    test_labels)
     m = CNNModel(c, d)
-    train_model(m, d)
+    train_model(m, d, 100, 10)
