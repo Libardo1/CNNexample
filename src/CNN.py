@@ -87,36 +87,22 @@ def init_weights_bias(shape, name):
 
 def apply_conv(input_tensor, layer):
     """
-    Create conv layer
+    Apply convolution
     """
-
     weights = layer['weights']
     bias = layer['bias']
-
-    # Create the TensorFlow operation for convolution.
-    # Note the strides are set to 1 in all dimensions.
-    # The first and last stride must always be 1,
-    # because the first is for the image-number and
-    # the last is for the input-channel.
-    # But e.g. strides=[1, 2, 2, 1] would mean that the filter
-    # is moved 2 pixels across the x- and y-axis of the image.
-    # The padding is set to 'SAME' which means the input image
-    # is padded with zeroes so the size of the output is the same.
     conv_layer = tf.nn.conv2d(input=input_tensor,
                               filter=weights,
                               strides=[1, 1, 1, 1],
                               padding='SAME')
-
-    # Add the bias to the results of the convolution.
-    # A bias-value is added to each filter-channel.
     conv_layer += bias
     return conv_layer
 
 
 def apply_pooling(input_layer):
-    # This is 2x2 max-pooling, which means that we
-    # consider 2x2 windows and select the largest value
-    # in each window. Then we move 2 pixels to the next window.
+    """
+    Apply max pooling
+    """
     pool_layer = tf.nn.max_pool(value=input_layer,
                                 ksize=[1, 2, 2, 1],
                                 strides=[1, 2, 2, 1],
