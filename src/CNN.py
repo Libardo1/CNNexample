@@ -97,79 +97,31 @@ class CNNModel:
             self.build_graph()
 
     def create_placeholders(self):
-        shape_X = (self.batch_size,
-                   self.image_size,
-                   self.image_size,
-                   self.num_channels)
-        shape_Y = (self.batch_size,
-                   self.num_labels)
-        name_X = 'X'
-        name_Y = 'Y'
-        self.tf_train_dataset = tf.placeholder(tf.float32,
-                                               shape=shape_X,
-                                               name=name_X)
-        self.tf_train_labels = tf.placeholder(tf.float32,
-                                              shape=shape_Y,
-                                              name=name_Y)
+        with tf.name_scope("Feed"):
+            shape_train_input = (self.batch_size,
+                                 self.image_size,
+                                 self.image_size,
+                                 self.num_channels)
+            shape_train_labels = (self.batch_size,
+                                  self.num_labels)
+            self.train_input = tf.placeholder(tf.float32,
+                                              shape=shape_train_input,
+                                              name="train_input")
+            self.train_labels = tf.placeholder(tf.float32,
+                                               shape=shape_train_labels,
+                                               name="train_labels")
 
-    def init_weights_bias(self, shape, weights_name, bias_name):
-        layer = {'weights': tf.Variable(tf.truncated_normal(shape, stddev=0.1),
-                                        name=weights_name),
-                 'bias': tf.Variable(tf.zeros(shape[-1]),
-                                     name=bias_name)}
+    def init_weights_bias(self, shape, name):
+        Winit = tf.truncated_normal(shape, stddev=0.1)
+        binit = tf.zeros(shape[-1])
+        layer = {}
+        layer["weights"] = tf.get_variable(name + "/weights",
+                                           dtype=tf.float32,
+                                           initializer=Winit)
+        layer["bias"] = tf.get_variable(name + "/bias",
+                                        dtype=tf.float32,
+                                        initializer=binit)
         return layer
-
-    def create_all_weights_bias(self):
-            shape1 = [self.patch_size,
-                      self.patch_size,
-                      self.num_channels,
-                      self.num_filters_1]
-            self.conv_layer_1_wb = self.init_weights_bias(shape1,
-                                                          "weights1",
-                                                          "bias1")
-
-            shape2 = [self.patch_size,
-                      self.patch_size,
-                      self.num_filters_1,
-                      self.num_filters_2]
-            self.conv_layer_2_wb = self.init_weights_bias(shape2,
-                                                          "weights2",
-                                                          "bias2")
-            flat = self.image_size // 4 * self.image_size // 4 * self.num_filters_2
-            shape3 = [flat, self.hidden_nodes_1]
-            self.fully_hidden_layer_1 = self.init_weights_bias(shape3,
-                                                               "weights3",
-                                                               "bias3")
-            shape4 = [self.hidden_nodes_1, self.hidden_nodes_2]
-            self.fully_hidden_layer_2 = self.init_weights_bias(shape4,
-                                                               "weights4",
-                                                               "bias4")
-
-            shape5 = [self.hidden_nodes_2, self.hidden_nodes_3]
-            self.fully_hidden_layer_3 = self.init_weights_bias(shape5,
-                                                               "weights5",
-                                                               "bias5")
-            shape6 = [self.hidden_nodes_3, self.num_labels]
-            self.fully_hidden_layer_4 = self.init_weights_bias(shape6,
-                                                               "weights6",
-                                                               "bias6")
-
-    def create_summaries(self):
-        """
-        histogram summaries for weights
-        """
-        tf.summary.histogram('weights1_summ',
-                             self.conv_layer_1_wb['weights'])
-        tf.summary.histogram('weights2_summ',
-                             self.conv_layer_2_wb['weights'])
-        tf.summary.histogram('weights3_summ',
-                             self.fully_hidden_layer_1['weights'])
-        tf.summary.histogram('weights4_summ',
-                             self.fully_hidden_layer_2['weights'])
-        tf.summary.histogram('weights5_summ',
-                             self.fully_hidden_layer_3['weights'])
-        tf.summary.histogram('weights6_summ',
-                             self.fully_hidden_layer_4['weights'])
 
     def apply_conv(self,
                    input_tensor,
@@ -221,48 +173,75 @@ class CNNModel:
         return tf.add(tf.matmul(input_tensor, layer['weights']),
                       layer['bias'])
 
-    def forward_prop(self,
-                     input_tensor,
-                     V_hidden_layer_1,
-                     V_hidden_layer_2,
-                     V_hidden_layer_3,
-                     V_hidden_layer_4,
-                     V_hidden_layer_5,
-                     V_hidden_layer_6):
+    def create_logits(self):
         with tf.name_scope('Convolution_1'):
-            conv_layer1 = self.apply_conv(input_tensor,
-                                          V_hidden_layer_1,
+            shape1 = [self.patch_size,
+                      self.patch_size,
+                      self.num_channels,
+                      self.num_filters_1]
+            self.conv_layer_1_wb = self.init_weights_bias(shape1, 'Convolution_1')
+            conv_layer1 = self.apply_conv(self.train_input,
+                                          self.conv_layer_1_wb,
                                           use_pooling=True)
         with tf.name_scope('Convolution_2'):
+            shape2 = [self.patch_size,
+                      self.patch_size,
+                      self.num_filters_1,
+                      self.num_filters_2]
+            self.conv_layer_2_wb = self.init_weights_bias(shape2, 'Convolution_2')
             conv_layer2 = self.apply_conv(conv_layer1,
-                                          V_hidden_layer_2,
+                                          self.conv_layer_2_wb,
                                           use_pooling=True)
         with tf.name_scope('Reshape'):
             shape = conv_layer2.get_shape().as_list()
             reshape = tf.reshape(conv_layer2,
                                  [shape[0], shape[1] * shape[2] * shape[3]])
         with tf.name_scope('Hidden_Layer_1'):
+            flat = self.image_size // 4 * self.image_size // 4 * self.num_filters_2
+            shape3 = [flat, self.hidden_nodes_1]
+            self.fully_hidden_layer_1 = self.init_weights_bias(shape3, 'Hidden_Layer_1')
             hidden_la1 = tf.nn.relu(self.linear_activation(reshape,
-                                                           V_hidden_layer_3))
+                                                           self.fully_hidden_layer_1))
         with tf.name_scope('Hidden_Layer_2'):
+            shape4 = [self.hidden_nodes_1, self.hidden_nodes_2]
+            self.fully_hidden_layer_2 = self.init_weights_bias(shape4, 'Hidden_Layer_2')
             hidden_la2 = tf.sigmoid(self.linear_activation(hidden_la1,
-                                                           V_hidden_layer_4))
+                                                           self.fully_hidden_layer_2))
         with tf.name_scope('Hidden_Layer_3'):
+            shape5 = [self.hidden_nodes_2, self.hidden_nodes_3]
+            self.fully_hidden_layer_3 = self.init_weights_bias(shape5, 'Hidden_Layer_3')
             hidden_la3 = tf.sigmoid(self.linear_activation(hidden_la2,
-                                                           V_hidden_layer_5))
+                                                           self.fully_hidden_layer_3))
         with tf.name_scope('Output_Layer'):
-            logits = self.linear_activation(hidden_la3,
-                                            V_hidden_layer_6)
-        return logits
+            shape6 = [self.hidden_nodes_3, self.num_labels]
+            self.fully_hidden_layer_4 = self.init_weights_bias(shape6, 'Output_Layer')
+            self.logits = self.linear_activation(hidden_la3,
+                                                 self.fully_hidden_layer_4)
+
+    def create_summaries(self):
+        """
+        histogram summaries for weights
+        """
+        tf.summary.histogram('weights1_summ',
+                             self.conv_layer_1_wb['weights'])
+        tf.summary.histogram('weights2_summ',
+                             self.conv_layer_2_wb['weights'])
+        tf.summary.histogram('weights3_summ',
+                             self.fully_hidden_layer_1['weights'])
+        tf.summary.histogram('weights4_summ',
+                             self.fully_hidden_layer_2['weights'])
+        tf.summary.histogram('weights5_summ',
+                             self.fully_hidden_layer_3['weights'])
+        tf.summary.histogram('weights6_summ',
+                             self.fully_hidden_layer_4['weights'])
 
     def create_loss(self):
         """
         Create the loss function of the model
         """
         with tf.name_scope("loss"):
-
             soft = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits,
-                                                           labels=self.tf_train_labels)
+                                                           labels=self.train_labels)
             self.loss = tf.reduce_mean(soft)
             tf.summary.scalar(self.loss.op.name, self.loss)
 
@@ -284,7 +263,7 @@ class CNNModel:
         """
         Create the optimization of the model
         """
-        with tf.name_scope("train"):
+        with tf.name_scope("optimizer"):
             self.optimizer = self.sgd_train(self.loss,
                                             self.learning_rate,
                                             self.steps_for_decay,
@@ -295,15 +274,12 @@ class CNNModel:
                                               name='train_network')
         self.train_pred_cls = tf.argmax(self.train_prediction,
                                         dimension=1)
-        self.valid_prediction = tf.nn.softmax(self.valid_network,
-                                              name='valid_network')
-        self.test_prediction = tf.nn.softmax(self.test_network,
-                                             name='test_network')
+        self.train_labes_cls = tf.argmax(self.train_labels, 1)
 
     def create_accuracy(self):
         with tf.name_scope('accuracy'):
-            correct_pred = tf.equal(tf.argmax(self.train_prediction, 1),
-                                    tf.argmax(self.tf_train_labels, 1))
+            correct_pred = tf.equal(self.train_pred_cls,
+                                    self.train_labes_cls)
             self.acc_op = tf.reduce_mean(tf.cast(correct_pred, 'float'))
             tf.summary.scalar(self.acc_op.op.name, self.acc_op)
 
@@ -312,34 +288,8 @@ class CNNModel:
         with self.graph.as_default():
 
             self.create_placeholders()
-            self.tf_valid_dataset = tf.constant(self.valid_dataset,
-                                                name='X_va')
-            self.tf_test_dataset = tf.constant(self.test_dataset,
-                                               name='X_test')
-            self.create_all_weights_bias()
+            self.create_logits()
             self.create_summaries()
-            self.logits = self.forward_prop(self.tf_train_dataset,
-                                            self.conv_layer_1_wb,
-                                            self.conv_layer_2_wb,
-                                            self.fully_hidden_layer_1,
-                                            self.fully_hidden_layer_2,
-                                            self.fully_hidden_layer_3,
-                                            self.fully_hidden_layer_4)
-            self.valid_network = self.forward_prop(self.tf_valid_dataset,
-                                                   self.conv_layer_1_wb,
-                                                   self.conv_layer_2_wb,
-                                                   self.fully_hidden_layer_1,
-                                                   self.fully_hidden_layer_2,
-                                                   self.fully_hidden_layer_3,
-                                                   self.fully_hidden_layer_4)
-
-            self.test_network = self.forward_prop(self.tf_test_dataset,
-                                                  self.conv_layer_1_wb,
-                                                  self.conv_layer_2_wb,
-                                                  self.fully_hidden_layer_1,
-                                                  self.fully_hidden_layer_2,
-                                                  self.fully_hidden_layer_3,
-                                                  self.fully_hidden_layer_4)
             self.create_loss()
             self.create_optimizer()
             self.create_predictions()
@@ -361,9 +311,9 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
             offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
             batch_data = train_dataset[offset:(offset + batch_size), :]
             batch_labels = train_labels[offset:(offset + batch_size), :]
-            feed_dict = {model.tf_train_dataset:
+            feed_dict = {model.train_input:
                          batch_data,
-                         model.tf_train_labels: batch_labels}
+                         model.train_labels: batch_labels}
             start_time = time.time()
             _, l, predictions, acc, summary = session.run([model.optimizer,
                                                            model.loss,
@@ -378,12 +328,7 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
             if (step % show_step == 0):
                 print("Minibatch loss at step %d: %f" % (step, l))
                 print("Minibatch accuracy: %.2f%%" % (acc * 100))
-                predictions = model.valid_prediction.eval()
-                print("Validation accuracy: %.1f%%" % accuracy(predictions,
-                                                               valid_labels))
                 print('Duration: %.3f sec' % duration)
-        predictions = m.test_prediction.eval()
-        print("Test accuracy: %.1f%%" % accuracy(predictions, test_labels))
 
     general_duration = time.time() - initial_time
     sec = timedelta(seconds=int(general_duration))
