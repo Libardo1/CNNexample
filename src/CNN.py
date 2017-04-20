@@ -2,7 +2,7 @@
 import tensorflow as tf
 import time
 from datetime import datetime, timedelta
-from util import get_data_4d, get_log, accuracy
+from util import get_data_4d, get_log
 
 
 class DataHolder:
@@ -72,6 +72,81 @@ class Config():
         self.decay_rate = decay_rate
 
 
+def init_weights_bias(shape, name):
+        Winit = tf.truncated_normal(shape, stddev=0.1)
+        binit = tf.zeros(shape[-1])
+        layer = {}
+        layer["weights"] = tf.get_variable(name + "/weights",
+                                           dtype=tf.float32,
+                                           initializer=Winit)
+        layer["bias"] = tf.get_variable(name + "/bias",
+                                        dtype=tf.float32,
+                                        initializer=binit)
+        return layer
+
+
+def apply_conv(input_tensor, layer):
+    """
+    Create conv layer
+    """
+
+    weights = layer['weights']
+    bias = layer['bias']
+
+    # Create the TensorFlow operation for convolution.
+    # Note the strides are set to 1 in all dimensions.
+    # The first and last stride must always be 1,
+    # because the first is for the image-number and
+    # the last is for the input-channel.
+    # But e.g. strides=[1, 2, 2, 1] would mean that the filter
+    # is moved 2 pixels across the x- and y-axis of the image.
+    # The padding is set to 'SAME' which means the input image
+    # is padded with zeroes so the size of the output is the same.
+    conv_layer = tf.nn.conv2d(input=input_tensor,
+                              filter=weights,
+                              strides=[1, 1, 1, 1],
+                              padding='SAME')
+
+    # Add the bias to the results of the convolution.
+    # A bias-value is added to each filter-channel.
+    conv_layer += bias
+    return conv_layer
+
+
+def apply_pooling(input_layer):
+    # This is 2x2 max-pooling, which means that we
+    # consider 2x2 windows and select the largest value
+    # in each window. Then we move 2 pixels to the next window.
+    pool_layer = tf.nn.max_pool(value=input_layer,
+                                ksize=[1, 2, 2, 1],
+                                strides=[1, 2, 2, 1],
+                                padding='SAME')
+    pool_layer = tf.nn.relu(pool_layer)
+    return pool_layer
+
+
+def linear_activation(input_tensor, layer):
+    """
+    Method to computing linear activation
+    """
+    return tf.add(tf.matmul(input_tensor, layer['weights']),
+                  layer['bias'])
+
+
+def sgd_train(loss,
+              starter_learning_rate,
+              steps_for_decay,
+              decay_rate):
+    global_step = tf.Variable(0, trainable=False)
+    learning_rate = tf.train.exponential_decay(starter_learning_rate,
+                                               global_step,
+                                               steps_for_decay,
+                                               decay_rate,
+                                               staircase=True)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    return optimizer.minimize(loss, global_step=global_step)
+
+
 class CNNModel:
 
     def __init__(self, config, dataholder):
@@ -111,112 +186,52 @@ class CNNModel:
                                                shape=shape_train_labels,
                                                name="train_labels")
 
-    def init_weights_bias(self, shape, name):
-        Winit = tf.truncated_normal(shape, stddev=0.1)
-        binit = tf.zeros(shape[-1])
-        layer = {}
-        layer["weights"] = tf.get_variable(name + "/weights",
-                                           dtype=tf.float32,
-                                           initializer=Winit)
-        layer["bias"] = tf.get_variable(name + "/bias",
-                                        dtype=tf.float32,
-                                        initializer=binit)
-        return layer
-
-    def apply_conv(self,
-                   input_tensor,
-                   layer,
-                   use_pooling=True):
-            """
-            Create conv layer
-            """
-
-            weights = layer['weights']
-            bias = layer['bias']
-
-            # Create the TensorFlow operation for convolution.
-            # Note the strides are set to 1 in all dimensions.
-            # The first and last stride must always be 1,
-            # because the first is for the image-number and
-            # the last is for the input-channel.
-            # But e.g. strides=[1, 2, 2, 1] would mean that the filter
-            # is moved 2 pixels across the x- and y-axis of the image.
-            # The padding is set to 'SAME' which means the input image
-            # is padded with zeroes so the size of the output is the same.
-            conv_layer = tf.nn.conv2d(input=input_tensor,
-                                      filter=weights,
-                                      strides=[1, 1, 1, 1],
-                                      padding='SAME')
-
-            # Add the bias to the results of the convolution.
-            # A bias-value is added to each filter-channel.
-            conv_layer += bias
-            # Use pooling to down-sample the image resolution?
-            if use_pooling:
-                # This is 2x2 max-pooling, which means that we
-                # consider 2x2 windows and select the largest value
-                # in each window. Then we move 2 pixels to the next window.
-                conv_layer = tf.nn.max_pool(value=conv_layer,
-                                            ksize=[1, 2, 2, 1],
-                                            strides=[1, 2, 2, 1],
-                                            padding='SAME')
-            conv_layer = tf.nn.relu(conv_layer)
-
-            return conv_layer
-
-    def linear_activation(self,
-                          input_tensor,
-                          layer):
-        """
-        Method to computing linear activation
-        """
-        return tf.add(tf.matmul(input_tensor, layer['weights']),
-                      layer['bias'])
-
     def create_logits(self):
         with tf.name_scope('Convolution_1'):
             shape1 = [self.patch_size,
                       self.patch_size,
                       self.num_channels,
                       self.num_filters_1]
-            self.conv_layer_1_wb = self.init_weights_bias(shape1, 'Convolution_1')
-            conv_layer1 = self.apply_conv(self.train_input,
-                                          self.conv_layer_1_wb,
-                                          use_pooling=True)
+            self.conv_layer_1_wb = init_weights_bias(shape1, 'Convolution_1')
+            conv_layer1 = apply_conv(self.train_input,
+                                     self.conv_layer_1_wb)
+        with tf.name_scope('Max_pooling1'):
+            pool_layer1 = apply_pooling(conv_layer1)
         with tf.name_scope('Convolution_2'):
             shape2 = [self.patch_size,
                       self.patch_size,
                       self.num_filters_1,
                       self.num_filters_2]
-            self.conv_layer_2_wb = self.init_weights_bias(shape2, 'Convolution_2')
-            conv_layer2 = self.apply_conv(conv_layer1,
-                                          self.conv_layer_2_wb,
-                                          use_pooling=True)
+            self.conv_layer_2_wb = init_weights_bias(shape2, 'Convolution_2')
+            conv_layer2 = apply_conv(pool_layer1,
+                                     self.conv_layer_2_wb)
+        with tf.name_scope('Max_pooling2'):
+            pool_layer2 = apply_pooling(conv_layer2)
         with tf.name_scope('Reshape'):
-            shape = conv_layer2.get_shape().as_list()
-            reshape = tf.reshape(conv_layer2,
+            shape = pool_layer2.get_shape().as_list()
+            reshape = tf.reshape(pool_layer2,
                                  [shape[0], shape[1] * shape[2] * shape[3]])
         with tf.name_scope('Hidden_Layer_1'):
             flat = self.image_size // 4 * self.image_size // 4 * self.num_filters_2
             shape3 = [flat, self.hidden_nodes_1]
-            self.fully_hidden_layer_1 = self.init_weights_bias(shape3, 'Hidden_Layer_1')
-            hidden_la1 = tf.nn.relu(self.linear_activation(reshape,
-                                                           self.fully_hidden_layer_1))
+            self.fully_hidden_layer_1 = init_weights_bias(shape3, 'Hidden_Layer_1')
+            hidden_la1 = tf.nn.relu(linear_activation(reshape,
+                                                      self.fully_hidden_layer_1))
         with tf.name_scope('Hidden_Layer_2'):
             shape4 = [self.hidden_nodes_1, self.hidden_nodes_2]
-            self.fully_hidden_layer_2 = self.init_weights_bias(shape4, 'Hidden_Layer_2')
-            hidden_la2 = tf.sigmoid(self.linear_activation(hidden_la1,
-                                                           self.fully_hidden_layer_2))
+            self.fully_hidden_layer_2 = init_weights_bias(shape4, 'Hidden_Layer_2')
+            hidden_la2 = tf.sigmoid(linear_activation(hidden_la1,
+                                                      self.fully_hidden_layer_2))
         with tf.name_scope('Hidden_Layer_3'):
             shape5 = [self.hidden_nodes_2, self.hidden_nodes_3]
-            self.fully_hidden_layer_3 = self.init_weights_bias(shape5, 'Hidden_Layer_3')
-            hidden_la3 = tf.sigmoid(self.linear_activation(hidden_la2,
-                                                           self.fully_hidden_layer_3))
+            self.fully_hidden_layer_3 = init_weights_bias(shape5, 'Hidden_Layer_3')
+            hidden_la3 = tf.sigmoid(linear_activation(hidden_la2,
+                                                      self.fully_hidden_layer_3))
         with tf.name_scope('Output_Layer'):
             shape6 = [self.hidden_nodes_3, self.num_labels]
-            self.fully_hidden_layer_4 = self.init_weights_bias(shape6, 'Output_Layer')
-            self.logits = self.linear_activation(hidden_la3,
-                                                 self.fully_hidden_layer_4)
+            self.fully_hidden_layer_4 = init_weights_bias(shape6, 'Output_Layer')
+            self.logits = linear_activation(hidden_la3,
+                                            self.fully_hidden_layer_4)
 
     def create_summaries(self):
         """
@@ -245,29 +260,15 @@ class CNNModel:
             self.loss = tf.reduce_mean(soft)
             tf.summary.scalar(self.loss.op.name, self.loss)
 
-    def sgd_train(self,
-                  loss,
-                  starter_learning_rate,
-                  steps_for_decay,
-                  decay_rate):
-        global_step = tf.Variable(0, trainable=False)
-        learning_rate = tf.train.exponential_decay(starter_learning_rate,
-                                                   global_step,
-                                                   steps_for_decay,
-                                                   decay_rate,
-                                                   staircase=True)
-        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-        return optimizer.minimize(loss, global_step=global_step)
-
     def create_optimizer(self):
         """
         Create the optimization of the model
         """
         with tf.name_scope("optimizer"):
-            self.optimizer = self.sgd_train(self.loss,
-                                            self.learning_rate,
-                                            self.steps_for_decay,
-                                            self.decay_rate)
+            self.optimizer = sgd_train(self.loss,
+                                       self.learning_rate,
+                                       self.steps_for_decay,
+                                       self.decay_rate)
 
     def create_predictions(self):
         self.train_prediction = tf.nn.softmax(self.logits,
