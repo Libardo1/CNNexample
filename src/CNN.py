@@ -342,4 +342,4 @@ if __name__ == "__main__":
                    test_dataset,
                    test_labels)
     m = CNNModel(c, d)
-    train_model(m, d, 100, 10)
+    train_model(m, d)
