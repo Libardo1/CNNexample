@@ -214,24 +214,24 @@ class CNNModel:
         with tf.name_scope('Hidden_Layer_1'):
             flat = self.image_size // 4 * self.image_size // 4 * self.num_filters_2
             shape3 = [flat, self.hidden_nodes_1]
-            self.fully_hidden_layer_1 = init_weights_bias(shape3, 'Hidden_Layer_1')
-            hidden_la1 = tf.nn.relu(linear_activation(reshape,
-                                                      self.fully_hidden_layer_1))
+            self.hidden_layer_1_wb = init_weights_bias(shape3, 'Hidden_Layer_1')
+            linear = linear_activation(reshape, self.hidden_layer_1_wb)
+            hidden_layer_1 = tf.nn.relu(linear)
         with tf.name_scope('Hidden_Layer_2'):
             shape4 = [self.hidden_nodes_1, self.hidden_nodes_2]
-            self.fully_hidden_layer_2 = init_weights_bias(shape4, 'Hidden_Layer_2')
-            hidden_la2 = tf.sigmoid(linear_activation(hidden_la1,
-                                                      self.fully_hidden_layer_2))
+            self.hidden_layer_2_wd = init_weights_bias(shape4, 'Hidden_Layer_2')
+            linear = linear_activation(hidden_layer_1, self.hidden_layer_2_wd)
+            hidden_layer_2 = tf.sigmoid(linear)
         with tf.name_scope('Hidden_Layer_3'):
             shape5 = [self.hidden_nodes_2, self.hidden_nodes_3]
-            self.fully_hidden_layer_3 = init_weights_bias(shape5, 'Hidden_Layer_3')
-            hidden_la3 = tf.sigmoid(linear_activation(hidden_la2,
-                                                      self.fully_hidden_layer_3))
+            self.hidden_layer_3_wb = init_weights_bias(shape5, 'Hidden_Layer_3')
+            linear = linear_activation(hidden_layer_2, self.hidden_layer_3_wb)
+            hidden_layer_3 = tf.sigmoid(linear)
         with tf.name_scope('Output_Layer'):
             shape6 = [self.hidden_nodes_3, self.num_labels]
-            self.fully_hidden_layer_4 = init_weights_bias(shape6, 'Output_Layer')
-            self.logits = linear_activation(hidden_la3,
-                                            self.fully_hidden_layer_4)
+            self.hidden_layer_4_wd = init_weights_bias(shape6, 'Output_Layer')
+            self.logits = linear_activation(hidden_layer_3,
+                                            self.hidden_layer_4_wd)
 
     def create_summaries(self):
         """
@@ -242,13 +242,13 @@ class CNNModel:
         tf.summary.histogram('weights2_summ',
                              self.conv_layer_2_wb['weights'])
         tf.summary.histogram('weights3_summ',
-                             self.fully_hidden_layer_1['weights'])
+                             self.hidden_layer_1_wb['weights'])
         tf.summary.histogram('weights4_summ',
-                             self.fully_hidden_layer_2['weights'])
+                             self.hidden_layer_2_wd['weights'])
         tf.summary.histogram('weights5_summ',
-                             self.fully_hidden_layer_3['weights'])
+                             self.hidden_layer_3_wb['weights'])
         tf.summary.histogram('weights6_summ',
-                             self.fully_hidden_layer_4['weights'])
+                             self.hidden_layer_4_wd['weights'])
 
     def create_loss(self):
         """
