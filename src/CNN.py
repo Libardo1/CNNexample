@@ -144,6 +144,8 @@ class CNNModel:
             self.path = get_log()
             self.config = config
             self.test_labels = dataholder.test_labels
+            self.valid_dataset = dataholder.valid_dataset
+            self.valid_labels = dataholder.valid_labels
             self.test_dataset = dataholder.test_dataset
             self.batch_size = self.config.batch_size
             self.patch_size = self.config.patch_size
@@ -185,6 +187,8 @@ class CNNModel:
     def create_constants(self):
         self.TestDataset = tf.constant(self.test_dataset, name='test_data')
         self.TestLabels = tf.constant(self.test_labels, name='test_labels')
+        self.ValidDataset = tf.constant(self.valid_dataset, name='valid_data')
+        self.ValidLabels = tf.constant(self.valid_labels, name='valid_labels')
 
     def create_logits(self, input_tensor, Reuse=None):
         with tf.variable_scope('Convolution_1', reuse=Reuse):
@@ -273,13 +277,17 @@ class CNNModel:
 
     def create_predictions(self):
         self.input_prediction = tf.nn.softmax(self.logits,
-                                              name='train_network')
+                                              name='train_logits')
         self.input_pred_cls = tf.argmax(self.input_prediction, 1)
         self.train_labes_cls = tf.argmax(self.input_labels, 1)
         test_prediction = tf.nn.softmax(self.test_logits,
-                                        name='test_network')
+                                        name='test_logits')
         self.test_prediction = tf.argmax(test_prediction, 1)
         self.test_labes_cls = tf.argmax(self.TestLabels, 1)
+        valid_prediction = tf.nn.softmax(self.valid_logits,
+                                         name='valid_logits')
+        self.valid_prediction = tf.argmax(valid_prediction, 1)
+        self.valid_labes_cls = tf.argmax(self.ValidLabels, 1)
         one_pic_prediction = tf.nn.softmax(self.one_pic_logits)
         self.one_pic_prediction_cls = tf.argmax(one_pic_prediction,
                                                 1,
@@ -291,8 +299,12 @@ class CNNModel:
                                     self.train_labes_cls)
             self.acc_op = tf.reduce_mean(tf.cast(correct_pred, 'float'))
             tf.summary.scalar(self.acc_op.op.name, self.acc_op)
-            comparison = tf.equal(self.test_prediction, self.test_labes_cls)
-            self.acc_test = tf.reduce_mean(tf.cast(comparison, 'float'))
+            test_comparison = tf.equal(self.test_prediction,
+                                       self.test_labes_cls)
+            self.acc_test = tf.reduce_mean(tf.cast(test_comparison, 'float'))
+            valid_comparison = tf.equal(self.valid_prediction,
+                                        self.valid_labes_cls)
+            self.acc_valid = tf.reduce_mean(tf.cast(valid_comparison, 'float'))
 
     def create_saver(self):
         self.saver = tf.train.Saver()
@@ -308,8 +320,12 @@ class CNNModel:
             self.create_placeholders()
             self.create_constants()
             self.logits = self.create_logits(self.input_tensor)
-            self.test_logits = self.create_logits(self.TestDataset, Reuse=True)
-            self.one_pic_logits = self.create_logits(self.one_pic, Reuse=True)
+            self.test_logits = self.create_logits(self.TestDataset,
+                                                  Reuse=True)
+            self.valid_logits = self.create_logits(self.ValidDataset,
+                                                   Reuse=True)
+            self.one_pic_logits = self.create_logits(self.one_pic,
+                                                     Reuse=True)
             self.create_summaries()
             self.create_loss()
             self.create_optimizer()
@@ -373,26 +389,18 @@ def train_model(model, dataholder, num_steps=10001, show_step=1000):
     print("\ntensorboard  --logdir={}\n".format(log_path))
 
 
-def check_valid(model, dataholder):
-    random_int = np.random.randint(10, size=(1))[0]
-    randomize_in_place(dataholder.valid_dataset,
-                       dataholder.valid_labels,
-                       random_int)
-    ValidInputs = dataholder.valid_dataset[: model.batch_size]
-    ValidLabels = dataholder.valid_labels[: model.batch_size]
-    with tf.Session(graph=model.graph) as session:
-                model.saver.restore(sess=session, save_path=model.save_path)
-                feed_dict = {model.input_tensor: ValidInputs,
-                             model.input_labels: ValidLabels}
-                valid_acc = session.run(model.acc_op, feed_dict=feed_dict)
-    return valid_acc
-
-
 def check_test(model):
     with tf.Session(graph=model.graph) as session:
                 model.saver.restore(sess=session, save_path=model.save_path)
-                test_acc = session.run(model.acc_test)
-    return test_acc
+                acc_test = session.run(model.acc_test)
+    return acc_test
+
+
+def check_valid(model):
+    with tf.Session(graph=model.graph) as session:
+                model.saver.restore(sess=session, save_path=model.save_path)
+                acc_valid = session.run(model.acc_valid)
+    return acc_valid
 
 
 def one_prediction(model, input_image):
@@ -414,9 +422,9 @@ def main():
                                test_dataset,
                                test_labels)
     my_model = CNNModel(my_config, my_dataholder)
-    train_model(my_model, my_dataholder, 1201, 400)
-    print("check_valid = ", check_valid(my_model, my_dataholder))
-    print("check_test = ", check_valid(my_model, my_dataholder))
+    train_model(my_model, my_dataholder, 1201, 300)
+    print("check_valid = ", check_valid(my_model))
+    print("check_test = ", check_test(my_model))
     one_example = valid_dataset[0]
     one_example = one_example.reshape(1,
                                       one_example.shape[0],
