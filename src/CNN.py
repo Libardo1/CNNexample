@@ -161,15 +161,15 @@ class CNNModel:
 
     def create_placeholders(self):
         with tf.name_scope("Feed"):
-            shape_train_input = (self.batch_size,
+            shape_input_tensor = (self.batch_size,
                                  self.image_size,
                                  self.image_size,
                                  self.num_channels)
             shape_train_labels = (self.batch_size,
                                   self.num_labels)
-            self.train_input = tf.placeholder(tf.float32,
-                                              shape=shape_train_input,
-                                              name="train_input")
+            self.input_tensor = tf.placeholder(tf.float32,
+                                              shape=shape_input_tensor,
+                                              name="input_tensor")
             self.train_labels = tf.placeholder(tf.float32,
                                                shape=shape_train_labels,
                                                name="train_labels")
@@ -264,19 +264,18 @@ class CNNModel:
                                        self.decay_rate)
 
     def create_predictions(self):
-        self.train_prediction = tf.nn.softmax(self.logits,
+        self.input_prediction = tf.nn.softmax(self.logits,
                                               name='train_network')
-        self.train_pred_cls = tf.argmax(self.train_prediction,
-                                        dimension=1)
+        self.input_pred_cls = tf.argmax(self.input_prediction, 1)
         self.train_labes_cls = tf.argmax(self.train_labels, 1)
         test_prediction = tf.nn.softmax(self.test_logits,
                                         name='test_network')
-        self.test_prediction = tf.argmax(test_prediction, dimension=1)
+        self.test_prediction = tf.argmax(test_prediction, 1)
         self.test_labes_cls = tf.argmax(self.TestLabels, 1)
 
     def create_accuracy(self):
         with tf.name_scope('accuracy'):
-            correct_pred = tf.equal(self.train_pred_cls,
+            correct_pred = tf.equal(self.input_pred_cls,
                                     self.train_labes_cls)
             self.acc_op = tf.reduce_mean(tf.cast(correct_pred, 'float'))
             tf.summary.scalar(self.acc_op.op.name, self.acc_op)
@@ -288,7 +287,7 @@ class CNNModel:
         save_dir = 'checkpoints/'
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-            self.save_path = os.path.join(save_dir, 'best_validation')
+        self.save_path = os.path.join(save_dir, 'best_validation')
 
     def build_graph(self):
         self.graph = tf.Graph()
@@ -296,7 +295,7 @@ class CNNModel:
 
             self.create_placeholders()
             self.create_constants()
-            self.logits = self.create_logits(self.train_input)
+            self.logits = self.create_logits(self.input_tensor)
             self.test_logits = self.create_logits(self.TestDataset, Reuse=True)
             self.create_summaries()
             self.create_loss()
@@ -312,6 +311,8 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
     initial_time = time.time()
     train_dataset = dataholder.train_dataset
     train_labels = dataholder.train_labels
+    best_acc_test = 0
+    marker = ''
 
     with tf.Session(graph=model.graph) as session:
         summary_writer = tf.summary.FileWriter(log_path, session.graph)
@@ -322,13 +323,13 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
             offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
             batch_data = train_dataset[offset:(offset + batch_size), :]
             batch_labels = train_labels[offset:(offset + batch_size), :]
-            feed_dict = {model.train_input:
+            feed_dict = {model.input_tensor:
                          batch_data,
                          model.train_labels: batch_labels}
             start_time = time.time()
             _, l, predictions, acc, summary = session.run([model.optimizer,
                                                            model.loss,
-                                                           model.train_prediction,
+                                                           model.input_prediction,
                                                            model.acc_op,
                                                            all_summaries],
                                                           feed_dict=feed_dict)
@@ -339,10 +340,17 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
             if (step % show_step == 0):
                 test_acc = session.run(model.acc_test,
                                        feed_dict=feed_dict)
+                if test_acc > best_acc_test:
+                        best_acc_test = test_acc
+                        marker = "*"
+                        model.saver.save(sess=session,
+                                         save_path=model.save_path)
                 print("Minibatch loss at step %d: %f" % (step, l))
                 print("Minibatch accuracy: %.2f%%" % (acc * 100))
-                print("Test accuracy: %.2f%%" % (test_acc * 100))
+                print("Test accuracy: %.2f%%" % (test_acc * 100) + marker)
                 print('Duration: %.3f sec' % duration)
+                marker = ''
+
 
     general_duration = time.time() - initial_time
     sec = timedelta(seconds=int(general_duration))
@@ -358,6 +366,14 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
     print(log_path)
 
 
+def prediction(model, input):
+    with tf.Session(graph=model.graph) as session:
+                model.saver.restore(sess=session, save_path=model.save_path)
+                feed_dict = {model.input_tensor: valid_dataset[:140],
+                             model.train_labels: valid_labels[:140]}
+                result = session.run(model.acc_op, feed_dict=feed_dict)
+                print(result)
+
 if __name__ == "__main__":
     train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels = get_data_4d()
     c = Config()
@@ -368,4 +384,6 @@ if __name__ == "__main__":
                    test_dataset,
                    test_labels)
     m = CNNModel(c, d)
-    train_model(m, d)
+    train_model(m, d, 501, 500)
+    prediction(m, d)
+
