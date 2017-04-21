@@ -1,6 +1,7 @@
 
 import tensorflow as tf
 import time
+import os
 from datetime import datetime, timedelta
 from util import get_data_4d, get_log
 
@@ -73,16 +74,16 @@ class Config():
 
 
 def init_weights_bias(shape, name):
-        Winit = tf.truncated_normal(shape, stddev=0.1)
-        binit = tf.zeros(shape[-1])
-        layer = {}
-        layer["weights"] = tf.get_variable(name + "/weights",
-                                           dtype=tf.float32,
-                                           initializer=Winit)
-        layer["bias"] = tf.get_variable(name + "/bias",
-                                        dtype=tf.float32,
-                                        initializer=binit)
-        return layer
+    Winit = tf.truncated_normal(shape, stddev=0.1)
+    binit = tf.zeros(shape[-1])
+    layer = {}
+    layer["weights"] = tf.get_variable(name + "/weights",
+                                       dtype=tf.float32,
+                                       initializer=Winit)
+    layer["bias"] = tf.get_variable(name + "/bias",
+                                    dtype=tf.float32,
+                                    initializer=binit)
+    return layer
 
 
 def apply_conv(input_tensor, layer):
@@ -139,8 +140,9 @@ class CNNModel:
             """
             init
             """
+            self.path = get_log()
             self.config = config
-            self.valid_dataset = dataholder.valid_dataset
+            self.test_labels = dataholder.test_labels
             self.test_dataset = dataholder.test_dataset
             self.batch_size = self.config.batch_size
             self.patch_size = self.config.patch_size
@@ -172,18 +174,22 @@ class CNNModel:
                                                shape=shape_train_labels,
                                                name="train_labels")
 
-    def create_logits(self):
-        with tf.name_scope('Convolution_1'):
+    def create_constants(self):
+        self.TestDataset = tf.constant(self.test_dataset, name='test_data')
+        self.TestLabels = tf.constant(self.test_labels, name='test_labels')
+
+    def create_logits(self, input_tensor, Reuse=None):
+        with tf.variable_scope('Convolution_1', reuse=Reuse):
             shape1 = [self.patch_size,
                       self.patch_size,
                       self.num_channels,
                       self.num_filters_1]
             self.conv_layer_1_wb = init_weights_bias(shape1, 'Convolution_1')
-            conv_layer1 = apply_conv(self.train_input,
+            conv_layer1 = apply_conv(input_tensor,
                                      self.conv_layer_1_wb)
         with tf.name_scope('Max_pooling1'):
             pool_layer1 = apply_pooling(conv_layer1)
-        with tf.name_scope('Convolution_2'):
+        with tf.variable_scope('Convolution_2', reuse=Reuse):
             shape2 = [self.patch_size,
                       self.patch_size,
                       self.num_filters_1,
@@ -195,29 +201,30 @@ class CNNModel:
             pool_layer2 = apply_pooling(conv_layer2)
         with tf.name_scope('Reshape'):
             shape = pool_layer2.get_shape().as_list()
+            flat = shape[1] * shape[2] * shape[3]
             reshape = tf.reshape(pool_layer2,
-                                 [shape[0], shape[1] * shape[2] * shape[3]])
-        with tf.name_scope('Hidden_Layer_1'):
-            flat = self.image_size // 4 * self.image_size // 4 * self.num_filters_2
+                                 [shape[0], flat])
+        with tf.variable_scope('Hidden_Layer_1', reuse=Reuse):
             shape3 = [flat, self.hidden_nodes_1]
             self.hidden_layer_1_wb = init_weights_bias(shape3, 'Hidden_Layer_1')
             linear = linear_activation(reshape, self.hidden_layer_1_wb)
             hidden_layer_1 = tf.nn.relu(linear)
-        with tf.name_scope('Hidden_Layer_2'):
+        with tf.variable_scope('Hidden_Layer_2', reuse=Reuse):
             shape4 = [self.hidden_nodes_1, self.hidden_nodes_2]
             self.hidden_layer_2_wd = init_weights_bias(shape4, 'Hidden_Layer_2')
             linear = linear_activation(hidden_layer_1, self.hidden_layer_2_wd)
             hidden_layer_2 = tf.sigmoid(linear)
-        with tf.name_scope('Hidden_Layer_3'):
+        with tf.variable_scope('Hidden_Layer_3', reuse=Reuse):
             shape5 = [self.hidden_nodes_2, self.hidden_nodes_3]
             self.hidden_layer_3_wb = init_weights_bias(shape5, 'Hidden_Layer_3')
             linear = linear_activation(hidden_layer_2, self.hidden_layer_3_wb)
             hidden_layer_3 = tf.sigmoid(linear)
-        with tf.name_scope('Output_Layer'):
+        with tf.variable_scope('Output_Layer', reuse=Reuse):
             shape6 = [self.hidden_nodes_3, self.num_labels]
             self.hidden_layer_4_wd = init_weights_bias(shape6, 'Output_Layer')
-            self.logits = linear_activation(hidden_layer_3,
-                                            self.hidden_layer_4_wd)
+            logits = linear_activation(hidden_layer_3,
+                                       self.hidden_layer_4_wd)
+            return logits
 
     def create_summaries(self):
         """
@@ -262,6 +269,10 @@ class CNNModel:
         self.train_pred_cls = tf.argmax(self.train_prediction,
                                         dimension=1)
         self.train_labes_cls = tf.argmax(self.train_labels, 1)
+        test_prediction = tf.nn.softmax(self.test_logits,
+                                        name='test_network')
+        self.test_prediction = tf.argmax(test_prediction, dimension=1)
+        self.test_labes_cls = tf.argmax(self.TestLabels, 1)
 
     def create_accuracy(self):
         with tf.name_scope('accuracy'):
@@ -269,21 +280,34 @@ class CNNModel:
                                     self.train_labes_cls)
             self.acc_op = tf.reduce_mean(tf.cast(correct_pred, 'float'))
             tf.summary.scalar(self.acc_op.op.name, self.acc_op)
+            comparison = tf.equal(self.test_prediction, self.test_labes_cls)
+            self.acc_test = tf.reduce_mean(tf.cast(comparison, 'float'))
+
+    def create_saver(self):
+        self.saver = tf.train.Saver()
+        save_dir = 'checkpoints/'
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+            self.save_path = os.path.join(save_dir, 'best_validation')
 
     def build_graph(self):
         self.graph = tf.Graph()
         with self.graph.as_default():
 
             self.create_placeholders()
-            self.create_logits()
+            self.create_constants()
+            self.logits = self.create_logits(self.train_input)
+            self.test_logits = self.create_logits(self.TestDataset, Reuse=True)
             self.create_summaries()
             self.create_loss()
             self.create_optimizer()
             self.create_predictions()
             self.create_accuracy()
+            self.create_saver()
 
 
 def train_model(model, dataholder, num_steps=10000, show_step=1000):
+    log_path = model.path
     batch_size = model.batch_size
     initial_time = time.time()
     train_dataset = dataholder.train_dataset
@@ -313,8 +337,11 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
             summary_writer.flush()
 
             if (step % show_step == 0):
+                test_acc = session.run(model.acc_test,
+                                       feed_dict=feed_dict)
                 print("Minibatch loss at step %d: %f" % (step, l))
                 print("Minibatch accuracy: %.2f%%" % (acc * 100))
+                print("Test accuracy: %.2f%%" % (test_acc * 100))
                 print('Duration: %.3f sec' % duration)
 
     general_duration = time.time() - initial_time
@@ -333,7 +360,6 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
 
 if __name__ == "__main__":
     train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels = get_data_4d()
-    log_path = get_log()
     c = Config()
     d = DataHolder(train_dataset,
                    train_labels,
