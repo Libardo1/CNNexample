@@ -2,6 +2,7 @@
 import tensorflow as tf
 import time
 import os
+import numpy as np
 from datetime import datetime, timedelta
 from util import get_data_4d, get_log
 
@@ -168,11 +169,18 @@ class CNNModel:
             shape_input_labels = (self.batch_size,
                                   self.num_labels)
             self.input_tensor = tf.placeholder(tf.float32,
-                                              shape=shape_input_tensor,
-                                              name="input_tensor")
+                                               shape=shape_input_tensor,
+                                               name="input_tensor")
             self.input_labels = tf.placeholder(tf.float32,
                                                shape=shape_input_labels,
                                                name="input_labels")
+            shape_one_pic = (1,
+                             self.image_size,
+                             self.image_size,
+                             self.num_channels)
+            self.one_pic = tf.placeholder(tf.float32,
+                                          shape=shape_one_pic,
+                                          name="one_pic")
 
     def create_constants(self):
         self.TestDataset = tf.constant(self.test_dataset, name='test_data')
@@ -272,6 +280,10 @@ class CNNModel:
                                         name='test_network')
         self.test_prediction = tf.argmax(test_prediction, 1)
         self.test_labes_cls = tf.argmax(self.TestLabels, 1)
+        one_pic_prediction = tf.nn.softmax(self.one_pic_logits)
+        self.one_pic_prediction_cls = tf.argmax(one_pic_prediction,
+                                                1,
+                                                name='one_pic_pred')
 
     def create_accuracy(self):
         with tf.name_scope('accuracy'):
@@ -297,6 +309,7 @@ class CNNModel:
             self.create_constants()
             self.logits = self.create_logits(self.input_tensor)
             self.test_logits = self.create_logits(self.TestDataset, Reuse=True)
+            self.one_pic_logits = self.create_logits(self.one_pic, Reuse=True)
             self.create_summaries()
             self.create_loss()
             self.create_optimizer()
@@ -327,12 +340,11 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
                          batch_data,
                          model.input_labels: batch_labels}
             start_time = time.time()
-            _, l, predictions, acc, summary = session.run([model.optimizer,
-                                                           model.loss,
-                                                           model.input_prediction,
-                                                           model.acc_op,
-                                                           all_summaries],
-                                                          feed_dict=feed_dict)
+            _, l, acc, summary = session.run([model.optimizer,
+                                              model.loss,
+                                              model.acc_op,
+                                              all_summaries],
+                                              feed_dict=feed_dict)
             duration = time.time() - start_time
             summary_writer.add_summary(summary, step)
             summary_writer.flush()
@@ -366,13 +378,25 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
     print(log_path)
 
 
-def prediction(model, input):
+def check_valid(model, dataholder):
+    ValidInputs = dataholder.valid_dataset[:140]
+    ValidLabels = dataholder.valid_labels[:140]
     with tf.Session(graph=model.graph) as session:
                 model.saver.restore(sess=session, save_path=model.save_path)
-                feed_dict = {model.input_tensor: valid_dataset[:140],
-                             model.input_labels: valid_labels[:140]}
+                feed_dict = {model.input_tensor: ValidInputs,
+                             model.input_labels: ValidLabels}
                 result = session.run(model.acc_op, feed_dict=feed_dict)
                 print(result)
+
+
+def one_prediction(model, input_image):
+    with tf.Session(graph=model.graph) as session:
+                model.saver.restore(sess=session, save_path=model.save_path)
+                print(input_image.shape)
+                feed_dict = {model.one_pic: input_image}
+                result = session.run(model.one_pic_prediction_cls,
+                                     feed_dict=feed_dict)
+    return result[0]
 
 if __name__ == "__main__":
     train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels = get_data_4d()
@@ -384,6 +408,9 @@ if __name__ == "__main__":
                    test_dataset,
                    test_labels)
     m = CNNModel(c, d)
-    train_model(m, d, 2, 3)
-    prediction(m, d)
-
+    # train_model(m, d, 201, 100)
+    check_valid(m, d)
+    one = valid_dataset[0]
+    one = one.reshape(1, one.shape[0], one.shape[1], one.shape[2])
+    print(one_prediction(m, one))
+    print(np.argmax(valid_labels[0]))
