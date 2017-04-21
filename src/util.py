@@ -5,6 +5,13 @@ import unittest
 import time
 
 
+def randomize_in_place(list1, list2, init):
+    np.random.seed(seed=init)
+    np.random.shuffle(list1)
+    np.random.seed(seed=init)
+    np.random.shuffle(list2)
+
+
 def run_test(testClass, header):
     """
     Function to run all the tests from a class of tests.

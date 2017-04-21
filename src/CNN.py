@@ -4,7 +4,7 @@ import time
 import os
 import numpy as np
 from datetime import datetime, timedelta
-from util import get_data_4d, get_log
+from util import get_data_4d, get_log, randomize_in_place
 
 
 class DataHolder:
@@ -33,7 +33,7 @@ class Config():
     """
     def __init__(self,
                  batch_size=140,
-                 patch_size=6,
+                 patch_size=5,
                  image_size=28,
                  num_labels=10,
                  num_channels=1,
@@ -318,7 +318,7 @@ class CNNModel:
             self.create_saver()
 
 
-def train_model(model, dataholder, num_steps=10000, show_step=1000):
+def train_model(model, dataholder, num_steps=10001, show_step=1000):
     log_path = model.path
     batch_size = model.batch_size
     initial_time = time.time()
@@ -331,7 +331,7 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
         summary_writer = tf.summary.FileWriter(log_path, session.graph)
         all_summaries = tf.summary.merge_all()
         tf.global_variables_initializer().run()
-        print('Initialized')
+        print('Start training')
         for step in range(num_steps):
             offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
             batch_data = train_dataset[offset:(offset + batch_size), :]
@@ -340,11 +340,11 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
                          batch_data,
                          model.input_labels: batch_labels}
             start_time = time.time()
-            _, l, acc, summary = session.run([model.optimizer,
-                                              model.loss,
-                                              model.acc_op,
-                                              all_summaries],
-                                              feed_dict=feed_dict)
+            _, loss, acc, summary = session.run([model.optimizer,
+                                                 model.loss,
+                                                 model.acc_op,
+                                                 all_summaries],
+                                                feed_dict=feed_dict)
             duration = time.time() - start_time
             summary_writer.add_summary(summary, step)
             summary_writer.flush()
@@ -357,60 +357,76 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
                         marker = "*"
                         model.saver.save(sess=session,
                                          save_path=model.save_path)
-                print("Minibatch loss at step %d: %f" % (step, l))
+                print("Minibatch loss at step %d: %f" % (step, loss))
                 print("Minibatch accuracy: %.2f%%" % (acc * 100))
                 print("Test accuracy: %.2f%%" % (test_acc * 100) + marker)
                 print('Duration: %.3f sec' % duration)
                 marker = ''
 
-
     general_duration = time.time() - initial_time
     sec = timedelta(seconds=int(general_duration))
     d_time = datetime(1, 1, 1) + sec
-    print(' ')
-    print("""The duration of the whole training with % s steps
-    is %.2f seconds,""" % (num_steps, general_duration))
-    print("""which is equal to:
-    %d:%d:%d:%d""" % (d_time.day - 1, d_time.hour, d_time.minute, d_time.second),
-          end='')
-    print(" (DAYS:HOURS:MIN:SEC)")
-    print(' ')
-    print(log_path)
+    print("\n&&&&&&&&& #training steps = {} &&&&&&&&&&&".format(num_steps))
+    print("""training time: %d:%d:%d:%d""" % (d_time.day - 1, d_time.hour, d_time.minute, d_time.second), end=' ')
+    print("(DAYS:HOURS:MIN:SEC)")
+    print("\n&&&&&&&&& For TensorBoard visualization type &&&&&&&&&&&")
+    print("\ntensorboard  --logdir={}\n".format(log_path))
 
 
 def check_valid(model, dataholder):
-    ValidInputs = dataholder.valid_dataset[:140]
-    ValidLabels = dataholder.valid_labels[:140]
+    random_int = np.random.randint(10, size=(1))[0]
+    randomize_in_place(dataholder.valid_dataset,
+                       dataholder.valid_labels,
+                       random_int)
+    ValidInputs = dataholder.valid_dataset[: model.batch_size]
+    ValidLabels = dataholder.valid_labels[: model.batch_size]
     with tf.Session(graph=model.graph) as session:
                 model.saver.restore(sess=session, save_path=model.save_path)
                 feed_dict = {model.input_tensor: ValidInputs,
                              model.input_labels: ValidLabels}
-                result = session.run(model.acc_op, feed_dict=feed_dict)
-                print(result)
+                valid_acc = session.run(model.acc_op, feed_dict=feed_dict)
+    return valid_acc
+
+
+def check_test(model):
+    with tf.Session(graph=model.graph) as session:
+                model.saver.restore(sess=session, save_path=model.save_path)
+                test_acc = session.run(model.acc_test)
+    return test_acc
 
 
 def one_prediction(model, input_image):
     with tf.Session(graph=model.graph) as session:
                 model.saver.restore(sess=session, save_path=model.save_path)
-                print(input_image.shape)
                 feed_dict = {model.one_pic: input_image}
                 result = session.run(model.one_pic_prediction_cls,
                                      feed_dict=feed_dict)
     return result[0]
 
-if __name__ == "__main__":
+
+def main():
     train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels = get_data_4d()
-    c = Config()
-    d = DataHolder(train_dataset,
-                   train_labels,
-                   valid_dataset,
-                   valid_labels,
-                   test_dataset,
-                   test_labels)
-    m = CNNModel(c, d)
-    # train_model(m, d, 201, 100)
-    check_valid(m, d)
-    one = valid_dataset[0]
-    one = one.reshape(1, one.shape[0], one.shape[1], one.shape[2])
-    print(one_prediction(m, one))
-    print(np.argmax(valid_labels[0]))
+    my_config = Config()
+    my_dataholder = DataHolder(train_dataset,
+                               train_labels,
+                               valid_dataset,
+                               valid_labels,
+                               test_dataset,
+                               test_labels)
+    my_model = CNNModel(my_config, my_dataholder)
+    train_model(my_model, my_dataholder, 1201, 400)
+    print("check_valid = ", check_valid(my_model, my_dataholder))
+    print("check_test = ", check_valid(my_model, my_dataholder))
+    one_example = valid_dataset[0]
+    one_example = one_example.reshape(1,
+                                      one_example.shape[0],
+                                      one_example.shape[1],
+                                      one_example.shape[2])
+    prediction = chr(one_prediction(my_model, one_example) + ord('A'))
+    real = chr(np.argmax(valid_labels[0]) + ord('A'))
+    print("Prediction = {}".format(prediction))
+    print("Real label = {}".format(real))
+
+
+if __name__ == "__main__":
+    main()
