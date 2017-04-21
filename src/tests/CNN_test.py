@@ -37,7 +37,7 @@ class TestCNN(unittest.TestCase):
             offset = batch_size % (TestCNN.train_labels.shape[0] - batch_size)
             batch_data = TestCNN.train_dataset[offset:(offset + batch_size), :]
             batch_labels = TestCNN.train_labels[offset:(offset + batch_size), :]
-            feed_dict = {TestCNN.model.train_input: batch_data, TestCNN.model.train_labels: batch_labels}
+            feed_dict = {TestCNN.model.input_tensor: batch_data, TestCNN.model.input_labels: batch_labels}
             loss = session.run(TestCNN.model.loss, feed_dict=feed_dict)
         self.assertTrue(loss < 3)
 
@@ -54,8 +54,8 @@ class TestCNN(unittest.TestCase):
                 batch_data = TestCNN.train_dataset[offset:(offset + batch_size), :]
                 batch_labels = TestCNN.train_labels[offset:(offset + batch_size), :]
 
-                feed_dict = {TestCNN.model.train_input: batch_data,
-                             TestCNN.model.train_labels: batch_labels}
+                feed_dict = {TestCNN.model.input_tensor: batch_data,
+                             TestCNN.model.input_labels: batch_labels}
 
                 _, current_loss = session.run([TestCNN.model.optimizer,
                                                TestCNN.model.loss],

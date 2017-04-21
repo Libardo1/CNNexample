@@ -162,17 +162,17 @@ class CNNModel:
     def create_placeholders(self):
         with tf.name_scope("Feed"):
             shape_input_tensor = (self.batch_size,
-                                 self.image_size,
-                                 self.image_size,
-                                 self.num_channels)
-            shape_train_labels = (self.batch_size,
+                                  self.image_size,
+                                  self.image_size,
+                                  self.num_channels)
+            shape_input_labels = (self.batch_size,
                                   self.num_labels)
             self.input_tensor = tf.placeholder(tf.float32,
                                               shape=shape_input_tensor,
                                               name="input_tensor")
-            self.train_labels = tf.placeholder(tf.float32,
-                                               shape=shape_train_labels,
-                                               name="train_labels")
+            self.input_labels = tf.placeholder(tf.float32,
+                                               shape=shape_input_labels,
+                                               name="input_labels")
 
     def create_constants(self):
         self.TestDataset = tf.constant(self.test_dataset, name='test_data')
@@ -249,7 +249,7 @@ class CNNModel:
         """
         with tf.name_scope("loss"):
             soft = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits,
-                                                           labels=self.train_labels)
+                                                           labels=self.input_labels)
             self.loss = tf.reduce_mean(soft)
             tf.summary.scalar(self.loss.op.name, self.loss)
 
@@ -267,7 +267,7 @@ class CNNModel:
         self.input_prediction = tf.nn.softmax(self.logits,
                                               name='train_network')
         self.input_pred_cls = tf.argmax(self.input_prediction, 1)
-        self.train_labes_cls = tf.argmax(self.train_labels, 1)
+        self.train_labes_cls = tf.argmax(self.input_labels, 1)
         test_prediction = tf.nn.softmax(self.test_logits,
                                         name='test_network')
         self.test_prediction = tf.argmax(test_prediction, 1)
@@ -325,7 +325,7 @@ def train_model(model, dataholder, num_steps=10000, show_step=1000):
             batch_labels = train_labels[offset:(offset + batch_size), :]
             feed_dict = {model.input_tensor:
                          batch_data,
-                         model.train_labels: batch_labels}
+                         model.input_labels: batch_labels}
             start_time = time.time()
             _, l, predictions, acc, summary = session.run([model.optimizer,
                                                            model.loss,
@@ -370,7 +370,7 @@ def prediction(model, input):
     with tf.Session(graph=model.graph) as session:
                 model.saver.restore(sess=session, save_path=model.save_path)
                 feed_dict = {model.input_tensor: valid_dataset[:140],
-                             model.train_labels: valid_labels[:140]}
+                             model.input_labels: valid_labels[:140]}
                 result = session.run(model.acc_op, feed_dict=feed_dict)
                 print(result)
 
@@ -384,6 +384,6 @@ if __name__ == "__main__":
                    test_dataset,
                    test_labels)
     m = CNNModel(c, d)
-    train_model(m, d, 501, 500)
+    train_model(m, d, 2, 3)
     prediction(m, d)
 
