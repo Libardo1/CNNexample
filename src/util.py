@@ -3,6 +3,33 @@ import numpy as np
 import os
 import unittest
 import time
+import matplotlib.pyplot as plt
+
+
+def plot9images(images, cls_true, img_shape, cls_pred=None):
+    """
+    Function to show 9 images with their respective classes.
+    If cls_pred is an array, you can see the image and the prediction.
+
+    :type images: np array
+    :type cls_true: np array
+    :type img_shape: np array
+    :type cls_prediction: None or np array
+    """
+    assert len(images) == len(cls_true) == 9
+    fig, axes = plt.subplots(3, 3)
+    fig.subplots_adjust(hspace=0.3, wspace=0.3)
+
+    for i, ax in enumerate(axes.flat):
+        ax.imshow(images[i].reshape(img_shape), cmap='binary')
+        if cls_pred is None:
+            xlabel = "True: {0}".format(cls_true[i])
+        else:
+            xlabel = "True: {0}, Pred: {1}".format(cls_true[i], cls_pred[i])
+        ax.set_xlabel(xlabel)
+        ax.set_xticks([])
+        ax.set_yticks([])
+    plt.show()
 
 
 def randomize_in_place(list1, list2, init):
