@@ -270,6 +270,10 @@ def train_model(model, dataholder, num_steps=10001, show_step=1000):
         all_summaries = tf.summary.merge_all()
         tf.global_variables_initializer().run()
         print('Start training')
+        print("{}  {}  {}  {}".format("step",
+                                      "batch_error",
+                                      "test_error",
+                                      "elapsed_time"))
         for step in range(num_steps):
             offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
             batch_data = train_dataset[offset:(offset + batch_size), :]
@@ -295,10 +299,11 @@ def train_model(model, dataholder, num_steps=10001, show_step=1000):
                         marker = "*"
                         model.saver.save(sess=session,
                                          save_path=model.save_path)
-                print("Minibatch loss at step %d: %f" % (step, loss))
-                print("Minibatch accuracy: %.2f%%" % (acc * 100))
-                print("Test accuracy: %.2f%%" % (test_acc * 100) + marker)
-                print('Duration: %.3f sec' % duration)
+                print("{:3d}   {:.2f}%        {:.2f}%{:s}    {:.2f}(s)".format(step,
+                                                                               acc * 100,
+                                                                               test_acc * 100,
+                                                                               marker,
+                                                                               duration))
                 marker = ''
 
     general_duration = time.time() - initial_time
@@ -367,7 +372,7 @@ def main():
                                test_dataset,
                                test_labels)
     my_model = CNNModel(my_config, my_dataholder)
-    train_model(my_model, my_dataholder, 11, 5)
+    train_model(my_model, my_dataholder, 1201, 400)
     print("check_test = ", check_test(my_model))
     print("check_valid = ", check_valid(my_model))
     one_example = valid_dataset[0]
