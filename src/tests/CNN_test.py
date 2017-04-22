@@ -8,7 +8,9 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 from util import run_test, get_data_4d
-from CNN import Config, CNNModel, DataHolder
+from CNN import CNNModel
+from DataHolder import DataHolder
+from Config import Config
 
 
 class TestCNN(unittest.TestCase):

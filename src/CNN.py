@@ -4,165 +4,50 @@ import time
 import os
 import numpy as np
 from datetime import datetime, timedelta
-from util import get_data_4d, get_log, randomize_in_place
-
-
-class DataHolder:
-    """
-    Class to store all the data information
-    """
-    def __init__(self,
-                 train_dataset,
-                 train_labels,
-                 valid_dataset,
-                 valid_labels,
-                 test_dataset,
-                 test_labels):
-        self.train_dataset = train_dataset
-        self.train_labels = train_labels
-        self.valid_dataset = valid_dataset
-        self.valid_labels = valid_labels
-        self.test_dataset = test_dataset
-        self.test_labels = test_labels
-
-
-class Config():
-    """
-    Holds model hyperparams and data information.
-    The config class is used to store various hyperparameters.
-    """
-    def __init__(self,
-                 batch_size=140,
-                 patch_size=5,
-                 image_size=28,
-                 num_labels=10,
-                 num_channels=1,
-                 num_filters_1=16,
-                 num_filters_2=32,
-                 hidden_nodes_1=60,
-                 hidden_nodes_2=40,
-                 hidden_nodes_3=20,
-                 learning_rate=0.9,
-                 steps_for_decay=100,
-                 decay_rate=0.96):
-        """
-        :type batch_size: int
-        :type patch_size: int
-        :type image_size: int
-        :type num_channels: int
-        :type num_filters_1: int
-        :type num_filters_2: int
-        :type hidden_nodes_1: int
-        :type hidden_nodes_2: int
-        :type hidden_nodes_3: int
-        :type learning_rate: float
-        :type steps_for_decay: float
-        :type decay_rate: float
-        """
-        self.batch_size = batch_size
-        self.patch_size = patch_size
-        self.image_size = image_size
-        self.num_labels = num_labels
-        self.num_channels = num_channels
-        self.num_filters_1 = num_filters_1
-        self.num_filters_2 = num_filters_2
-        self.hidden_nodes_1 = hidden_nodes_1
-        self.hidden_nodes_2 = hidden_nodes_2
-        self.hidden_nodes_3 = hidden_nodes_3
-        self.learning_rate = learning_rate
-        self.steps_for_decay = steps_for_decay
-        self.decay_rate = decay_rate
-
-
-def init_weights_bias(shape, name):
-    Winit = tf.truncated_normal(shape, stddev=0.1)
-    binit = tf.zeros(shape[-1])
-    layer = {}
-    layer["weights"] = tf.get_variable(name + "/weights",
-                                       dtype=tf.float32,
-                                       initializer=Winit)
-    layer["bias"] = tf.get_variable(name + "/bias",
-                                    dtype=tf.float32,
-                                    initializer=binit)
-    return layer
-
-
-def apply_conv(input_tensor, layer):
-    """
-    Apply convolution
-    """
-    weights = layer['weights']
-    bias = layer['bias']
-    conv_layer = tf.nn.conv2d(input=input_tensor,
-                              filter=weights,
-                              strides=[1, 1, 1, 1],
-                              padding='SAME')
-    conv_layer += bias
-    return conv_layer
-
-
-def apply_pooling(input_layer):
-    """
-    Apply max pooling
-    """
-    pool_layer = tf.nn.max_pool(value=input_layer,
-                                ksize=[1, 2, 2, 1],
-                                strides=[1, 2, 2, 1],
-                                padding='SAME')
-    pool_layer = tf.nn.relu(pool_layer)
-    return pool_layer
-
-
-def linear_activation(input_tensor, layer):
-    """
-    Method to computing linear activation
-    """
-    return tf.add(tf.matmul(input_tensor, layer['weights']),
-                  layer['bias'])
-
-
-def sgd_train(loss,
-              starter_learning_rate,
-              steps_for_decay,
-              decay_rate):
-    global_step = tf.Variable(0, trainable=False)
-    learning_rate = tf.train.exponential_decay(starter_learning_rate,
-                                               global_step,
-                                               steps_for_decay,
-                                               decay_rate,
-                                               staircase=True)
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-    return optimizer.minimize(loss, global_step=global_step)
+from util import get_data_4d, get_log_path
+from DataHolder import DataHolder
+from Config import Config
+from tf_functions import apply_conv, apply_pooling, linear_activation, gd_train, init_wb
 
 
 class CNNModel:
+    """
+    CNN model. Architecture: conv-pull-conv-pull-fc
+    """
 
     def __init__(self, config, dataholder):
-            """
-            init
-            """
-            self.path = get_log()
-            self.config = config
-            self.test_labels = dataholder.test_labels
-            self.valid_dataset = dataholder.valid_dataset
-            self.valid_labels = dataholder.valid_labels
-            self.test_dataset = dataholder.test_dataset
-            self.batch_size = self.config.batch_size
-            self.patch_size = self.config.patch_size
-            self.image_size = self.config.image_size
-            self.num_labels = self.config.num_labels
-            self.num_channels = self.config.num_channels
-            self.num_filters_1 = self.config.num_filters_1
-            self.num_filters_2 = self.config.num_filters_2
-            self.hidden_nodes_1 = self.config.hidden_nodes_1
-            self.hidden_nodes_2 = self.config.hidden_nodes_2
-            self.hidden_nodes_3 = self.config.hidden_nodes_3
-            self.learning_rate = self.config.learning_rate
-            self.steps_for_decay = self.config.steps_for_decay
-            self.decay_rate = self.config.decay_rate
-            self.build_graph()
+        """
+        :type config: Config
+        :type dataholder: DataHolder
+        """
+        self.path = get_log_path()
+        self.config = config
+        self.test_labels = dataholder.test_labels
+        self.valid_dataset = dataholder.valid_dataset
+        self.valid_labels = dataholder.valid_labels
+        self.test_dataset = dataholder.test_dataset
+        self.batch_size = self.config.batch_size
+        self.patch_size = self.config.patch_size
+        self.image_size = self.config.image_size
+        self.num_labels = self.config.num_labels
+        self.num_channels = self.config.num_channels
+        self.num_filters_1 = self.config.num_filters_1
+        self.num_filters_2 = self.config.num_filters_2
+        self.hidden_nodes_1 = self.config.hidden_nodes_1
+        self.hidden_nodes_2 = self.config.hidden_nodes_2
+        self.hidden_nodes_3 = self.config.hidden_nodes_3
+        self.learning_rate = self.config.learning_rate
+        self.steps_for_decay = self.config.steps_for_decay
+        self.decay_rate = self.config.decay_rate
+        self.build_graph()
 
     def create_placeholders(self):
+        """
+        Method to create the placeholders for the graph.
+        self.input_tensor and self.input_labels are the
+        placeholder for the training; self.one_pic is the placefolder
+        for predict just one image
+        """
         with tf.name_scope("Feed"):
             shape_input_tensor = (self.batch_size,
                                   self.image_size,
@@ -185,18 +70,29 @@ class CNNModel:
                                           name="one_pic")
 
     def create_constants(self):
+        """
+        Method to create the constants for the graph.
+        """
         self.TestDataset = tf.constant(self.test_dataset, name='test_data')
         self.TestLabels = tf.constant(self.test_labels, name='test_labels')
         self.ValidDataset = tf.constant(self.valid_dataset, name='valid_data')
         self.ValidLabels = tf.constant(self.valid_labels, name='valid_labels')
 
     def create_logits(self, input_tensor, Reuse=None):
+        """
+        Method that calculates the forward propagation.
+        Reuse is the param to reuse the same weights.
+
+        :type input_tensor: tf tensor
+        :type Reuse: tf param >> None or True
+        :rtype: tf tensor
+        """
         with tf.variable_scope('Convolution_1', reuse=Reuse):
             shape1 = [self.patch_size,
                       self.patch_size,
                       self.num_channels,
                       self.num_filters_1]
-            self.conv_layer_1_wb = init_weights_bias(shape1, 'Convolution_1')
+            self.conv_layer_1_wb = init_wb(shape1, 'Convolution_1')
             conv_layer1 = apply_conv(input_tensor,
                                      self.conv_layer_1_wb)
         with tf.name_scope('Max_pooling1'):
@@ -206,7 +102,7 @@ class CNNModel:
                       self.patch_size,
                       self.num_filters_1,
                       self.num_filters_2]
-            self.conv_layer_2_wb = init_weights_bias(shape2, 'Convolution_2')
+            self.conv_layer_2_wb = init_wb(shape2, 'Convolution_2')
             conv_layer2 = apply_conv(pool_layer1,
                                      self.conv_layer_2_wb)
         with tf.name_scope('Max_pooling2'):
@@ -218,29 +114,29 @@ class CNNModel:
                                  [shape[0], flat])
         with tf.variable_scope('Hidden_Layer_1', reuse=Reuse):
             shape3 = [flat, self.hidden_nodes_1]
-            self.hidden_layer_1_wb = init_weights_bias(shape3, 'Hidden_Layer_1')
+            self.hidden_layer_1_wb = init_wb(shape3, 'Hidden_Layer_1')
             linear = linear_activation(reshape, self.hidden_layer_1_wb)
             hidden_layer_1 = tf.nn.relu(linear)
         with tf.variable_scope('Hidden_Layer_2', reuse=Reuse):
             shape4 = [self.hidden_nodes_1, self.hidden_nodes_2]
-            self.hidden_layer_2_wd = init_weights_bias(shape4, 'Hidden_Layer_2')
+            self.hidden_layer_2_wd = init_wb(shape4, 'Hidden_Layer_2')
             linear = linear_activation(hidden_layer_1, self.hidden_layer_2_wd)
             hidden_layer_2 = tf.sigmoid(linear)
         with tf.variable_scope('Hidden_Layer_3', reuse=Reuse):
             shape5 = [self.hidden_nodes_2, self.hidden_nodes_3]
-            self.hidden_layer_3_wb = init_weights_bias(shape5, 'Hidden_Layer_3')
+            self.hidden_layer_3_wb = init_wb(shape5, 'Hidden_Layer_3')
             linear = linear_activation(hidden_layer_2, self.hidden_layer_3_wb)
             hidden_layer_3 = tf.sigmoid(linear)
         with tf.variable_scope('Output_Layer', reuse=Reuse):
             shape6 = [self.hidden_nodes_3, self.num_labels]
-            self.hidden_layer_4_wd = init_weights_bias(shape6, 'Output_Layer')
+            self.hidden_layer_4_wd = init_wb(shape6, 'Output_Layer')
             logits = linear_activation(hidden_layer_3,
                                        self.hidden_layer_4_wd)
             return logits
 
     def create_summaries(self):
         """
-        histogram summaries for weights
+        Method to create the histogram summaries for all weights
         """
         tf.summary.histogram('weights1_summ',
                              self.conv_layer_1_wb['weights'])
@@ -257,7 +153,7 @@ class CNNModel:
 
     def create_loss(self):
         """
-        Create the loss function of the model
+        Method to create the loss function of the graph
         """
         with tf.name_scope("loss"):
             soft = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits,
@@ -267,15 +163,20 @@ class CNNModel:
 
     def create_optimizer(self):
         """
-        Create the optimization of the model
+        Method to create the optimizer of the graph
         """
         with tf.name_scope("optimizer"):
-            self.optimizer = sgd_train(self.loss,
-                                       self.learning_rate,
-                                       self.steps_for_decay,
-                                       self.decay_rate)
+            self.optimizer = gd_train(self.loss,
+                                      self.learning_rate,
+                                      self.steps_for_decay,
+                                      self.decay_rate)
 
     def create_predictions(self):
+        """
+        Method to create the prediction for the placeholders,
+        for the test dataset, for the valid dataset and for the
+        single image.
+        """
         self.input_prediction = tf.nn.softmax(self.logits,
                                               name='train_logits')
         self.input_pred_cls = tf.argmax(self.input_prediction, 1)
@@ -294,6 +195,10 @@ class CNNModel:
                                                 name='one_pic_pred')
 
     def create_accuracy(self):
+        """
+        Method to create the accuracy score of the test dataset
+        and the valid.
+        """
         with tf.name_scope('accuracy'):
             correct_pred = tf.equal(self.input_pred_cls,
                                     self.train_labes_cls)
@@ -307,6 +212,9 @@ class CNNModel:
             self.acc_valid = tf.reduce_mean(tf.cast(valid_comparison, 'float'))
 
     def create_saver(self):
+        """
+        Method to create the graph saver.
+        """
         self.saver = tf.train.Saver()
         save_dir = 'checkpoints/'
         if not os.path.exists(save_dir):
@@ -314,6 +222,9 @@ class CNNModel:
         self.save_path = os.path.join(save_dir, 'best_validation')
 
     def build_graph(self):
+        """
+        Method to build the computation graph.
+        """
         self.graph = tf.Graph()
         with self.graph.as_default():
 
@@ -335,6 +246,17 @@ class CNNModel:
 
 
 def train_model(model, dataholder, num_steps=10001, show_step=1000):
+    """
+    Function to train the model in that num_steps steps. For each step that
+    is divisible by show_step, this function calculates the accuracy test and
+    saves the graph weights if the accuracy test is better than
+    the previous one.
+
+    :type model: CNNModel
+    :type dataholder: DataHolder
+    :type num_steps: int
+    :type show_steps: int
+    """
     log_path = model.path
     batch_size = model.batch_size
     initial_time = time.time()
@@ -390,6 +312,12 @@ def train_model(model, dataholder, num_steps=10001, show_step=1000):
 
 
 def check_test(model):
+    """
+    Function that returns the accuracy of the test dataset.
+
+    :type model: CNNModel
+    :rtype : float
+    """
     with tf.Session(graph=model.graph) as session:
                 model.saver.restore(sess=session, save_path=model.save_path)
                 acc_test = session.run(model.acc_test)
@@ -397,6 +325,12 @@ def check_test(model):
 
 
 def check_valid(model):
+    """
+    Function that returns the accuracy of the valid dataset.
+
+    :type model: CNNModel
+    :rtype : float
+    """
     with tf.Session(graph=model.graph) as session:
                 model.saver.restore(sess=session, save_path=model.save_path)
                 acc_valid = session.run(model.acc_valid)
@@ -404,6 +338,12 @@ def check_valid(model):
 
 
 def one_prediction(model, input_image):
+    """
+    Function that returns the predicted class of the input_image.
+
+    :type model: CNNModel
+    :rtype : int
+    """
     with tf.Session(graph=model.graph) as session:
                 model.saver.restore(sess=session, save_path=model.save_path)
                 feed_dict = {model.one_pic: input_image}
@@ -413,6 +353,11 @@ def one_prediction(model, input_image):
 
 
 def main():
+    """
+    Basic script that shows the training of the model,
+    the accuracy of the test and valid datasets, and
+    the prediction of one specific image.
+    """
     train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels = get_data_4d()
     my_config = Config()
     my_dataholder = DataHolder(train_dataset,
@@ -422,9 +367,9 @@ def main():
                                test_dataset,
                                test_labels)
     my_model = CNNModel(my_config, my_dataholder)
-    train_model(my_model, my_dataholder, 1201, 300)
-    print("check_valid = ", check_valid(my_model))
+    train_model(my_model, my_dataholder, 11, 5)
     print("check_test = ", check_test(my_model))
+    print("check_valid = ", check_valid(my_model))
     one_example = valid_dataset[0]
     one_example = one_example.reshape(1,
                                       one_example.shape[0],
