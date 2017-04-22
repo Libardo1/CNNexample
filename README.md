@@ -13,7 +13,7 @@ This project is my first attempt to create a CNN in tensorflow. I use the [notMN
 ```
 $ cd src
 $ bash download.sh
-$ python3 svd.py -s 20000
+$ python3 CNN.py
 
 
 >> Start training
