@@ -271,8 +271,8 @@ def train_model(model, dataholder, num_steps=10001, show_step=1000):
         tf.global_variables_initializer().run()
         print('Start training')
         print("{}  {}  {}  {}".format("step",
-                                      "batch_error",
-                                      "test_error",
+                                      "batch_acc",
+                                      "test_acc",
                                       "elapsed_time"))
         for step in range(num_steps):
             offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
@@ -314,6 +314,7 @@ def train_model(model, dataholder, num_steps=10001, show_step=1000):
     print("(DAYS:HOURS:MIN:SEC)")
     print("\n&&&&&&&&& For TensorBoard visualization type &&&&&&&&&&&")
     print("\ntensorboard  --logdir={}\n".format(log_path))
+    return general_duration
 
 
 def check_test(model):
@@ -372,7 +373,7 @@ def main():
                                test_dataset,
                                test_labels)
     my_model = CNNModel(my_config, my_dataholder)
-    train_model(my_model, my_dataholder, 1201, 400)
+    _ = train_model(my_model, my_dataholder, 1201, 400)
     print("check_test = ", check_test(my_model))
     print("check_valid = ", check_valid(my_model))
     one_example = valid_dataset[0]
