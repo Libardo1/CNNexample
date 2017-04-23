@@ -271,8 +271,8 @@ def train_model(model, dataholder, num_steps=10001, show_step=1000):
         tf.global_variables_initializer().run()
         print('Start training')
         print("{}  {}  {}  {}".format("step",
-                                      "batch_error",
-                                      "test_error",
+                                      "batch_acc",
+                                      "test_acc",
                                       "elapsed_time"))
         for step in range(num_steps):
             offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
