@@ -248,7 +248,7 @@ class CNNModel:
                                                      Reuse=True)
             self.create_summaries()
             self.create_loss()
-            self.create_optimizer()
+            self.create_optimizer_decay()
             self.create_predictions()
             self.create_accuracy()
             self.create_saver()

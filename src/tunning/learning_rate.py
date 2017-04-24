@@ -24,15 +24,19 @@ my_dataholder = DataHolder(train_dataset,
                            test_dataset,
                            test_labels)
 
-number_of_exp = 5
-PATCH_SIZE = [3, 5, 7, 9, 11]
+
+number_of_exp = 10
+LR = np.random.random_sample([number_of_exp])
+LR = np.append(LR, 0.9)
+number_of_exp += 1
+LR.sort()
 results = []
 duration = []
 info = []
 
-for i, ps in enumerate(PATCH_SIZE):
+for i, lr in enumerate(LR):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(patch_size=ps)
+    my_config = Config(learning_rate=lr)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]
     info.append(config_info)
@@ -43,8 +47,9 @@ for i, ps in enumerate(PATCH_SIZE):
     results.append(score)
     duration.append(current_dur)
 
-best_result = max(list(zip(results, PATCH_SIZE, duration, info)))
-result_string = """In an experiment with {0} patch sizes
+LR = list(LR)
+best_result = max(list(zip(results, LR, duration, info)))
+result_string = """In an experiment with {0} learning rate values
 the best one is {1} with test accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
@@ -53,16 +58,18 @@ the best one is {1} with test accuracy = {2}.
                 best_result[2],
                 best_result[3])
 
-file = open("patch_size.txt", "w")
+file = open("learning_rate.txt", "w")
 file.write(result_string)
 file.close()
 
-plt.plot(PATCH_SIZE, results)
-plt.xlabel("patch size")
+plt.plot(LR, results)
+plt.xscale('log')
+plt.xlabel("learning rate")
 plt.ylabel("score")
-plt.savefig("patch_size.png")
+plt.savefig("learning_rate.png")
 
-plt.plot(PATCH_SIZE, duration)
-plt.xlabel("patch size")
+plt.plot(LR, duration)
+plt.xscale('log')
+plt.xlabel("learning rate")
 plt.ylabel("duration (s)")
-plt.savefig("patch_size_du.png")
+plt.savefig("learning_rate_du.png")

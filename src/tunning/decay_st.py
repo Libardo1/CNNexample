@@ -24,15 +24,16 @@ my_dataholder = DataHolder(train_dataset,
                            test_dataset,
                            test_labels)
 
-number_of_exp = 5
-PATCH_SIZE = [3, 5, 7, 9, 11]
+
+DECAY = [40, 80, 100, 150, 230, 300, 450, 600, 800]
+number_of_exp = len(DECAY)
 results = []
 duration = []
 info = []
 
-for i, ps in enumerate(PATCH_SIZE):
+for i, de in enumerate(DECAY):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(patch_size=ps)
+    my_config = Config(steps_for_decay=de)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]
     info.append(config_info)
@@ -43,8 +44,8 @@ for i, ps in enumerate(PATCH_SIZE):
     results.append(score)
     duration.append(current_dur)
 
-best_result = max(list(zip(results, PATCH_SIZE, duration, info)))
-result_string = """In an experiment with {0} patch sizes
+best_result = max(list(zip(results, DECAY, duration, info)))
+result_string = """In an experiment with {0} steps for decay
 the best one is {1} with test accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
@@ -53,16 +54,16 @@ the best one is {1} with test accuracy = {2}.
                 best_result[2],
                 best_result[3])
 
-file = open("patch_size.txt", "w")
+file = open("decay_st.txt", "w")
 file.write(result_string)
 file.close()
 
-plt.plot(PATCH_SIZE, results)
-plt.xlabel("patch size")
+plt.plot(DECAY, results)
+plt.xlabel("steps for decay")
 plt.ylabel("score")
-plt.savefig("patch_size.png")
+plt.savefig("decay_st.png")
 
-plt.plot(PATCH_SIZE, duration)
-plt.xlabel("patch size")
+plt.plot(DECAY, duration)
+plt.xlabel("steps for decay")
 plt.ylabel("duration (s)")
-plt.savefig("patch_size_du.png")
+plt.savefig("decay_st_du.png")

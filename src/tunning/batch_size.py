@@ -45,7 +45,7 @@ for i, ba in enumerate(BATCH_SIZE):
 
 best_result = max(list(zip(results, BATCH_SIZE, duration, info)))
 result_string = """In an experiment with {0} batch sizes
-the best one is {1} with score = {2}.
+the best one is {1} with test accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
                 best_result[1],

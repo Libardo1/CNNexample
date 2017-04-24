@@ -24,27 +24,29 @@ my_dataholder = DataHolder(train_dataset,
                            test_dataset,
                            test_labels)
 
-number_of_exp = 5
-PATCH_SIZE = [3, 5, 7, 9, 11]
+FC = [5, 10, 15, 20, 30, 40, 60, 200]
+number_of_exp = len(FC)
 results = []
 duration = []
 info = []
 
-for i, ps in enumerate(PATCH_SIZE):
+for i, fc in enumerate(FC):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(patch_size=ps)
+    my_config = Config(hidden_nodes_1=3 * fc,
+                       hidden_nodes_2=2 * fc,
+                       hidden_nodes_3=fc)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]
     info.append(config_info)
     my_model = CNNModel(my_config, my_dataholder)
-    train_model(my_model, my_dataholder, 10001, 1000, False)
-    current_dur = get_time(train_model, 10001)
+    train_model(my_model, my_dataholder, 3, 2, False)
+    current_dur = get_time(train_model, 3)
     score = check_test(my_model)
     results.append(score)
     duration.append(current_dur)
 
-best_result = max(list(zip(results, PATCH_SIZE, duration, info)))
-result_string = """In an experiment with {0} patch sizes
+best_result = max(list(zip(results, FC, duration, info)))
+result_string = """In an experiment with {0} filter sizes
 the best one is {1} with test accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
@@ -53,16 +55,17 @@ the best one is {1} with test accuracy = {2}.
                 best_result[2],
                 best_result[3])
 
-file = open("patch_size.txt", "w")
+
+file = open("fc.txt", "w")
 file.write(result_string)
 file.close()
 
-plt.plot(PATCH_SIZE, results)
-plt.xlabel("patch size")
+plt.plot(FC, results)
+plt.xlabel("hidden_nodes_3")
 plt.ylabel("score")
-plt.savefig("patch_size.png")
+plt.savefig("fc.png")
 
-plt.plot(PATCH_SIZE, duration)
-plt.xlabel("patch size")
+plt.plot(FC, duration)
+plt.xlabel("hidden_nodes_3")
 plt.ylabel("duration (s)")
-plt.savefig("patch_size_du.png")
+plt.savefig("fc_du.png")
