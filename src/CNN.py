@@ -4,7 +4,7 @@ import time
 import os
 import numpy as np
 from datetime import datetime, timedelta
-from util import get_data_4d, get_log_path
+from util import get_data_4d, get_log_path, timeit
 from DataHolder import DataHolder
 from Config import Config
 from tf_functions import apply_conv, apply_pooling, linear_activation, gd_train, init_wb
@@ -245,10 +245,15 @@ class CNNModel:
             self.create_saver()
 
 
-def train_model(model, dataholder, num_steps=10001, show_step=1000):
+@timeit([2])
+def train_model(model,
+                dataholder,
+                num_steps=10001,
+                show_step=1000,
+                verbose=True):
     """
-    Function to train the model in that num_steps steps. For each step that
-    is divisible by show_step, this function calculates the accuracy test and
+    Function to train the model in num_steps steps. For each step that
+    is divisible by show_step this function calculates the accuracy test and
     saves the graph weights if the accuracy test is better than
     the previous one.
 
@@ -305,16 +310,15 @@ def train_model(model, dataholder, num_steps=10001, show_step=1000):
                                                                                marker,
                                                                                duration))
                 marker = ''
-
-    general_duration = time.time() - initial_time
-    sec = timedelta(seconds=int(general_duration))
-    d_time = datetime(1, 1, 1) + sec
-    print("\n&&&&&&&&& #training steps = {} &&&&&&&&&&&".format(num_steps))
-    print("""training time: %d:%d:%d:%d""" % (d_time.day - 1, d_time.hour, d_time.minute, d_time.second), end=' ')
-    print("(DAYS:HOURS:MIN:SEC)")
-    print("\n&&&&&&&&& For TensorBoard visualization type &&&&&&&&&&&")
-    print("\ntensorboard  --logdir={}\n".format(log_path))
-    return general_duration
+    if verbose:
+        general_duration = time.time() - initial_time
+        sec = timedelta(seconds=int(general_duration))
+        d_time = datetime(1, 1, 1) + sec
+        print("\n&&&&&&&&& #training steps = {} &&&&&&&&&&&".format(num_steps))
+        print("""training time: %d:%d:%d:%d""" % (d_time.day - 1, d_time.hour, d_time.minute, d_time.second), end=' ')
+        print("(DAYS:HOURS:MIN:SEC)")
+        print("\n&&&&&&&&& For TensorBoard visualization type &&&&&&&&&&&")
+        print("\ntensorboard  --logdir={}\n".format(log_path))
 
 
 def check_test(model):
@@ -373,7 +377,7 @@ def main():
                                test_dataset,
                                test_labels)
     my_model = CNNModel(my_config, my_dataholder)
-    _ = train_model(my_model, my_dataholder, 1201, 400)
+    train_model(my_model, my_dataholder, 301, 150)
     print("check_test = ", check_test(my_model))
     print("check_valid = ", check_valid(my_model))
     one_example = valid_dataset[0]
