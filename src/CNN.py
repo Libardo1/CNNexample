@@ -166,6 +166,15 @@ class CNNModel:
         Method to create the optimizer of the graph
         """
         with tf.name_scope("optimizer"):
+            opt = tf.train.GradientDescentOptimizer(self.learning_rate)
+            self.optimizer = opt.minimize(self.loss)
+
+    def create_optimizer_decay(self):
+        """
+        Method to create the optimizer of the graph using the training steps
+        to change the learning rate
+        """
+        with tf.name_scope("optimizer"):
             self.optimizer = gd_train(self.loss,
                                       self.learning_rate,
                                       self.steps_for_decay,
