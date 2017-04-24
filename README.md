@@ -1,6 +1,6 @@
 # CNN example
 
-This project is my first attempt to create a CNN in tensorflow. I use the [TF-recomm](https://github.com/songgc/TF-recomm) dataset to create some predictions. In the folder Tutorials you can find a basic script to run the model.
+This project is my first attempt to create a CNN in tensorflow. I use the [notMNIST](http://yaroslavvb.blogspot.com.br/2011/09/notmnist-dataset.html) dataset to create some predictions. In the folder Tutorials you can find a basic script to run the model.
 
 ### Requirements
 
@@ -13,7 +13,7 @@ This project is my first attempt to create a CNN in tensorflow. I use the [TF-re
 ```
 $ cd src
 $ bash download.sh
-$ python3 svd.py -s 20000
+$ python3 CNN.py
 
 
 >> Start training
