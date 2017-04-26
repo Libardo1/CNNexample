@@ -39,6 +39,7 @@ class CNNModel:
         self.learning_rate = self.config.learning_rate
         self.steps_for_decay = self.config.steps_for_decay
         self.decay_rate = self.config.decay_rate
+        self.dropout = self.config.dropout
         self.build_graph()
 
     def create_placeholders(self):
@@ -96,6 +97,8 @@ class CNNModel:
             conv_layer1 = apply_conv(input_tensor,
                                      self.conv_layer_1_wb)
         with tf.name_scope('Max_pooling1'):
+            if Reuse is None:
+                conv_layer1 = tf.nn.dropout(conv_layer1, self.dropout)
             pool_layer1 = apply_pooling(conv_layer1)
         with tf.variable_scope('Convolution_2', reuse=Reuse):
             shape2 = [self.patch_size,
@@ -119,8 +122,8 @@ class CNNModel:
             hidden_layer_1 = tf.nn.relu(linear)
         with tf.variable_scope('Hidden_Layer_2', reuse=Reuse):
             shape4 = [self.hidden_nodes_1, self.hidden_nodes_2]
-            self.hidden_layer_2_wd = init_wb(shape4, 'Hidden_Layer_2')
-            linear = linear_activation(hidden_layer_1, self.hidden_layer_2_wd)
+            self.hidden_layer_2_wb = init_wb(shape4, 'Hidden_Layer_2')
+            linear = linear_activation(hidden_layer_1, self.hidden_layer_2_wb)
             hidden_layer_2 = tf.sigmoid(linear)
         with tf.variable_scope('Hidden_Layer_3', reuse=Reuse):
             shape5 = [self.hidden_nodes_2, self.hidden_nodes_3]
@@ -129,9 +132,9 @@ class CNNModel:
             hidden_layer_3 = tf.sigmoid(linear)
         with tf.variable_scope('Output_Layer', reuse=Reuse):
             shape6 = [self.hidden_nodes_3, self.num_labels]
-            self.hidden_layer_4_wd = init_wb(shape6, 'Output_Layer')
+            self.hidden_layer_4_wb = init_wb(shape6, 'Output_Layer')
             logits = linear_activation(hidden_layer_3,
-                                       self.hidden_layer_4_wd)
+                                       self.hidden_layer_4_wb)
             return logits
 
     def create_summaries(self):
@@ -145,11 +148,11 @@ class CNNModel:
         tf.summary.histogram('weights3_summ',
                              self.hidden_layer_1_wb['weights'])
         tf.summary.histogram('weights4_summ',
-                             self.hidden_layer_2_wd['weights'])
+                             self.hidden_layer_2_wb['weights'])
         tf.summary.histogram('weights5_summ',
                              self.hidden_layer_3_wb['weights'])
         tf.summary.histogram('weights6_summ',
-                             self.hidden_layer_4_wd['weights'])
+                             self.hidden_layer_4_wb['weights'])
 
     def create_loss(self):
         """
@@ -248,7 +251,7 @@ class CNNModel:
                                                      Reuse=True)
             self.create_summaries()
             self.create_loss()
-            self.create_optimizer_decay()
+            self.create_optimizer()
             self.create_predictions()
             self.create_accuracy()
             self.create_saver()
@@ -276,7 +279,7 @@ def train_model(model,
     initial_time = time.time()
     train_dataset = dataholder.train_dataset
     train_labels = dataholder.train_labels
-    best_acc_test = 0
+    best_valid_test = 0
     marker = ''
 
     with tf.Session(graph=model.graph) as session:
@@ -286,7 +289,7 @@ def train_model(model,
         print('Start training')
         print("{}  {}  {}  {}".format("step",
                                       "batch_acc",
-                                      "test_acc",
+                                      "valid_acc",
                                       "elapsed_time"))
         for step in range(num_steps):
             offset = (step * batch_size) % (train_labels.shape[0] - batch_size)
@@ -306,16 +309,15 @@ def train_model(model,
             summary_writer.flush()
 
             if (step % show_step == 0):
-                test_acc = session.run(model.acc_test,
-                                       feed_dict=feed_dict)
-                if test_acc > best_acc_test:
-                        best_acc_test = test_acc
+                valid_acc = session.run(model.acc_valid)
+                if valid_acc > best_valid_test:
+                        best_valid_test = valid_acc
                         marker = "*"
                         model.saver.save(sess=session,
                                          save_path=model.save_path)
                 print("{:3d}   {:.2f}%        {:.2f}%{:s}    {:.2f}(s)".format(step,
                                                                                acc * 100,
-                                                                               test_acc * 100,
+                                                                               valid_acc * 100,
                                                                                marker,
                                                                                duration))
                 marker = ''
@@ -387,15 +389,15 @@ def main():
                                test_labels)
     my_model = CNNModel(my_config, my_dataholder)
     train_model(my_model, my_dataholder, 301, 150)
-    print("check_test = ", check_test(my_model))
     print("check_valid = ", check_valid(my_model))
-    one_example = valid_dataset[0]
+    # print("check_test = ", check_test(my_model))
+    one_example = test_dataset[0]
     one_example = one_example.reshape(1,
                                       one_example.shape[0],
                                       one_example.shape[1],
                                       one_example.shape[2])
     prediction = chr(one_prediction(my_model, one_example) + ord('A'))
-    real = chr(np.argmax(valid_labels[0]) + ord('A'))
+    real = chr(np.argmax(test_labels[0]) + ord('A'))
     print("Prediction = {}".format(prediction))
     print("Real label = {}".format(real))
 

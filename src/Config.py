@@ -3,19 +3,20 @@ class Config():
     Class to hold all model hyperparams.
     """
     def __init__(self,
-                 batch_size=140,
+                 batch_size=230,
                  patch_size=7,
                  image_size=28,
                  num_labels=10,
                  num_channels=1,
                  num_filters_1=11,
                  num_filters_2=22,
-                 hidden_nodes_1=60,
-                 hidden_nodes_2=40,
-                 hidden_nodes_3=20,
-                 learning_rate=0.9,
-                 steps_for_decay=100,
-                 decay_rate=0.96):
+                 hidden_nodes_1=120,
+                 hidden_nodes_2=80,
+                 hidden_nodes_3=40,
+                 learning_rate=0.95,
+                 steps_for_decay=150,
+                 decay_rate=0.96,
+                 dropout=0.75):
         """
         :type batch_size: int
         :type patch_size: int
@@ -43,3 +44,4 @@ class Config():
         self.learning_rate = learning_rate
         self.steps_for_decay = steps_for_decay
         self.decay_rate = decay_rate
+        self.dropout = dropout

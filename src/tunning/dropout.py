@@ -24,32 +24,31 @@ my_dataholder = DataHolder(train_dataset,
                            test_dataset,
                            test_labels)
 
-
 number_of_exp = 10
-LR = np.random.random_sample([number_of_exp])
-LR = np.append(LR, 0.9)
+DP = np.random.random_sample([number_of_exp])
+DP = np.append(DP, 0.99)
 number_of_exp += 1
-LR.sort()
+DP.sort()
 results = []
 duration = []
 info = []
 
-for i, lr in enumerate(LR):
+for i, dro in enumerate(DP):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(learning_rate=lr)
+    my_config = Config(dropout=dro)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]
     info.append(config_info)
     my_model = CNNModel(my_config, my_dataholder)
-    train_model(my_model, my_dataholder, 10001, 1000, False)
-    current_dur = get_time(train_model, 10001)
+    train_model(my_model, my_dataholder, 3, 2, False)
+    current_dur = get_time(train_model, 3)
     score = check_valid(my_model)
     results.append(score)
     duration.append(current_dur)
 
-LR = list(LR)
-best_result = max(list(zip(results, LR, duration, info)))
-result_string = """In an experiment with {0} learning rate values
+DP = list(DP)
+best_result = max(list(zip(results, DP, duration, info)))
+result_string = """In an experiment with {0} dropout values
 the best one is {1} with valid accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
@@ -58,20 +57,20 @@ the best one is {1} with valid accuracy = {2}.
                 best_result[2],
                 best_result[3])
 
-file = open("learning_rate.txt", "w")
+file = open("dropout.txt", "w")
 file.write(result_string)
 file.close()
 
-plt.plot(LR, results)
+plt.plot(DP, results)
 plt.xscale('log')
-plt.xlabel("learning rate")
+plt.xlabel("dropout")
 plt.ylabel("valid acc")
-plt.savefig("learning_rate.png")
+plt.savefig("dropout.png")
 plt.clf()
 
-plt.plot(LR, duration)
+plt.plot(DP, duration)
 plt.xscale('log')
-plt.xlabel("learning rate")
+plt.xlabel("dropout")
 plt.ylabel("duration (s)")
-plt.savefig("learning_rate_du.png")
+plt.savefig("dropout_du.png")
 plt.clf()

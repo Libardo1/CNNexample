@@ -12,7 +12,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 from util import run_test, get_data_4d, get_time
-from CNN import CNNModel, train_model, check_test
+from CNN import CNNModel, train_model, check_valid
 from DataHolder import DataHolder
 from Config import Config
 
@@ -39,15 +39,15 @@ for i, fc in enumerate(FC):
     config_info = ["%s: %s" % item for item in attrs.items()]
     info.append(config_info)
     my_model = CNNModel(my_config, my_dataholder)
-    train_model(my_model, my_dataholder, 3, 2, False)
-    current_dur = get_time(train_model, 3)
-    score = check_test(my_model)
+    train_model(my_model, my_dataholder, 10001, 1000, False)
+    current_dur = get_time(train_model, 10001)
+    score = check_valid(my_model)
     results.append(score)
     duration.append(current_dur)
 
 best_result = max(list(zip(results, FC, duration, info)))
-result_string = """In an experiment with {0} filter sizes
-the best one is {1} with test accuracy = {2}.
+result_string = """In an experiment with {0} fully connected sizes
+the best one is {1} with valid accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
                 best_result[1],
@@ -56,16 +56,18 @@ the best one is {1} with test accuracy = {2}.
                 best_result[3])
 
 
-file = open("fc.txt", "w")
+file = open("final.txt", "w")
 file.write(result_string)
 file.close()
 
 plt.plot(FC, results)
 plt.xlabel("hidden_nodes_3")
-plt.ylabel("score")
+plt.ylabel("valid acc")
 plt.savefig("fc.png")
+plt.clf()
 
 plt.plot(FC, duration)
 plt.xlabel("hidden_nodes_3")
 plt.ylabel("duration (s)")
 plt.savefig("fc_du.png")
+plt.clf()

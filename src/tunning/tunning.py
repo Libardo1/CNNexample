@@ -11,8 +11,8 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-from util import run_test, get_data_4d, get_time
-from CNN import CNNModel, train_model, check_test
+from util import get_data_4d, get_time
+from CNN import CNNModel, train_model, check_valid
 from DataHolder import DataHolder
 from Config import Config
 
@@ -44,14 +44,14 @@ for i, lr in enumerate(LR):
     my_model = CNNModel(my_config, my_dataholder)
     train_model(my_model, my_dataholder, 10001, 1000, False)
     current_dur = get_time(train_model, 10001)
-    score = check_test(my_model)
+    score = check_valid(my_model)
     results.append(score)
     duration.append(current_dur)
 
 LR = list(LR)
 best_result = max(list(zip(results, LR, duration, info)))
 result_string = """In an experiment with {0} learning rate values
-the best one is {1} with test accuracy = {2}.
+the best one is {1} with valid accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
                 best_result[1],
@@ -66,7 +66,7 @@ file.close()
 plt.plot(LR, results)
 plt.xscale('log')
 plt.xlabel("learning rate")
-plt.ylabel("test acc")
+plt.ylabel("valid acc")
 plt.savefig("learning_rate.png")
 plt.clf()
 
@@ -100,14 +100,14 @@ for i, de in enumerate(DECAY):
     my_model = CNNModel(my_config, my_dataholder)
     train_model(my_model, my_dataholder, 10001, 1000, False)
     current_dur = get_time(train_model, 10001)
-    score = check_test(my_model)
+    score = check_valid(my_model)
     results.append(score)
     duration.append(current_dur)
 
 DECAY = list(DECAY)
 best_result = max(list(zip(results, DECAY, duration, info)))
 result_string = """In an experiment with {0} decay rate values
-the best one is {1} with test accuracy = {2}.
+the best one is {1} with valid accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
                 best_result[1],
@@ -122,7 +122,7 @@ file.close()
 plt.plot(DECAY, results)
 plt.xscale('log')
 plt.xlabel("decay rate")
-plt.ylabel("test acc")
+plt.ylabel("valid acc")
 plt.savefig("decay_ra.png")
 plt.clf()
 
@@ -155,13 +155,13 @@ for i, de in enumerate(DECAY):
     my_model = CNNModel(my_config, my_dataholder)
     train_model(my_model, my_dataholder, 10001, 1000, False)
     current_dur = get_time(train_model, 10001)
-    score = check_test(my_model)
+    score = check_valid(my_model)
     results.append(score)
     duration.append(current_dur)
 
 best_result = max(list(zip(results, DECAY, duration, info)))
 result_string = """In an experiment with {0} steps for decay
-the best one is {1} with test accuracy = {2}.
+the best one is {1} with valid accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
                 best_result[1],
@@ -175,7 +175,7 @@ file.close()
 
 plt.plot(DECAY, results)
 plt.xlabel("steps for decay")
-plt.ylabel("test acc")
+plt.ylabel("valid acc")
 plt.savefig("decay_st.png")
 plt.clf()
 
@@ -208,13 +208,13 @@ for i, ba in enumerate(BATCH_SIZE):
     my_model = CNNModel(my_config, my_dataholder)
     train_model(my_model, my_dataholder, 10001, 1000, False)
     current_dur = get_time(train_model, 10001)
-    score = check_test(my_model)
+    score = check_valid(my_model)
     results.append(score)
     duration.append(current_dur)
 
 best_result = max(list(zip(results, BATCH_SIZE, duration, info)))
 result_string = """In an experiment with {0} batch sizes
-the best one is {1} with test accuracy = {2}.
+the best one is {1} with valid accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
                 best_result[1],
@@ -228,7 +228,7 @@ file.close()
 
 plt.plot(BATCH_SIZE, results)
 plt.xlabel("batch size")
-plt.ylabel("test acc")
+plt.ylabel("valid acc")
 plt.savefig("batch_size.png")
 plt.clf()
 
@@ -261,13 +261,13 @@ for i, ps in enumerate(PATCH_SIZE):
     my_model = CNNModel(my_config, my_dataholder)
     train_model(my_model, my_dataholder, 10001, 1000, False)
     current_dur = get_time(train_model, 10001)
-    score = check_test(my_model)
+    score = check_valid(my_model)
     results.append(score)
     duration.append(current_dur)
 
 best_result = max(list(zip(results, PATCH_SIZE, duration, info)))
 result_string = """In an experiment with {0} patch sizes
-the best one is {1} with test accuracy = {2}.
+the best one is {1} with valid accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
                 best_result[1],
@@ -281,7 +281,7 @@ file.close()
 
 plt.plot(PATCH_SIZE, results)
 plt.xlabel("patch size")
-plt.ylabel("test acc")
+plt.ylabel("valid acc")
 plt.savefig("patch_size.png")
 plt.clf()
 
@@ -316,13 +316,13 @@ for i, fi in enumerate(FILTER1):
     my_model = CNNModel(my_config, my_dataholder)
     train_model(my_model, my_dataholder, 10001, 1000, False)
     current_dur = get_time(train_model, 10001)
-    score = check_test(my_model)
+    score = check_valid(my_model)
     results.append(score)
     duration.append(current_dur)
 
 best_result = max(list(zip(results, FILTER1, duration, info)))
 result_string = """In an experiment with {0} filter sizes
-the best one is {1} with test accuracy = {2}.
+the best one is {1} with valid accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
                 best_result[1],
@@ -337,7 +337,7 @@ file.close()
 
 plt.plot(FILTER1, results)
 plt.xlabel("filter1")
-plt.ylabel("test acc")
+plt.ylabel("valid acc")
 plt.savefig("filter1.png")
 plt.clf()
 
@@ -349,11 +349,10 @@ plt.clf()
 
 num_filters_1 = best_result[1]
 num_filters_2 = 2 * best_result[1]
-print(num_filters_1, num_filters_2)
 
 print("\n&&&&&&&&& Fully Connected &&&&&&&&&&&")
 
-FC = [5, 10, 15, 20, 30, 40, 60, 200]
+FC = [10, 15, 20, 30, 40, 60, 100, 200, 300]
 number_of_exp = len(FC)
 results = []
 duration = []
@@ -377,13 +376,13 @@ for i, fc in enumerate(FC):
     my_model = CNNModel(my_config, my_dataholder)
     train_model(my_model, my_dataholder, 10001, 1000, False)
     current_dur = get_time(train_model, 10001)
-    score = check_test(my_model)
+    score = check_valid(my_model)
     results.append(score)
     duration.append(current_dur)
 
 best_result = max(list(zip(results, FC, duration, info)))
 result_string = """In an experiment with {0} fully connected sizes
-the best one is {1} with test accuracy = {2}.
+the best one is {1} with valid accuracy = {2}.
 \nThe training takes {3:.2f} seconds using the following params:
 \n{4}""".format(number_of_exp,
                 best_result[1],
@@ -392,13 +391,13 @@ the best one is {1} with test accuracy = {2}.
                 best_result[3])
 
 
-file = open("final.txt", "w")
+file = open("fc.txt", "w")
 file.write(result_string)
 file.close()
 
 plt.plot(FC, results)
 plt.xlabel("hidden_nodes_3")
-plt.ylabel("test acc")
+plt.ylabel("valid acc")
 plt.savefig("fc.png")
 plt.clf()
 
@@ -406,4 +405,72 @@ plt.plot(FC, duration)
 plt.xlabel("hidden_nodes_3")
 plt.ylabel("duration (s)")
 plt.savefig("fc_du.png")
+plt.clf()
+
+hidden_nodes_3 = best_result[1]
+hidden_nodes_2 = 2 * best_result[1]
+hidden_nodes_1 = 3 * best_result[1]
+
+
+print("\n&&&&&&&&& Dropout &&&&&&&&&&&")
+
+number_of_exp = 10
+DP = np.random.random_sample([number_of_exp])
+DP = np.append(DP, 0.99)
+number_of_exp += 1
+DP.sort()
+results = []
+duration = []
+info = []
+
+for i, dro in enumerate(DP):
+    print("\n ({0} of {1})".format(i + 1, number_of_exp))
+    my_config = Config(hidden_nodes_1=hidden_nodes_1,
+                       hidden_nodes_2=hidden_nodes_2,
+                       hidden_nodes_3=hidden_nodes_3,
+                       num_filters_1=num_filters_1,
+                       num_filters_2=num_filters_2,
+                       patch_size=patch_size,
+                       steps_for_decay=steps_for_decay,
+                       learning_rate=learning_rate,
+                       decay_rate=decay_rate,
+                       batch_size=batch_size,
+                       dropout=dro)
+    attrs = vars(my_config)
+    config_info = ["%s: %s" % item for item in attrs.items()]
+    info.append(config_info)
+    my_model = CNNModel(my_config, my_dataholder)
+    train_model(my_model, my_dataholder, 10001, 1000, False)
+    current_dur = get_time(train_model, 10001)
+    score = check_valid(my_model)
+    results.append(score)
+    duration.append(current_dur)
+
+DP = list(DP)
+best_result = max(list(zip(results, DP, duration, info)))
+result_string = """In an experiment with {0} dropout values
+the best one is {1} with valid accuracy = {2}.
+\nThe training takes {3:.2f} seconds using the following params:
+\n{4}""".format(number_of_exp,
+                best_result[1],
+                best_result[0],
+                best_result[2],
+                best_result[3])
+
+file = open("final.txt", "w")
+file.write(result_string)
+file.close()
+
+plt.plot(DP, results)
+plt.xscale('log')
+plt.xlabel("dropout")
+plt.ylabel("valid acc")
+plt.savefig("dropout.png")
+plt.clf()
+
+plt.plot(DP, duration)
+plt.xscale('log')
+plt.xlabel("dropout")
+plt.ylabel("duration (s)")
+plt.savefig("dropout_du.png")
 plt.clf()
