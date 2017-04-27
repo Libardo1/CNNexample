@@ -33,7 +33,7 @@ info = []
 
 for i, de in enumerate(DECAY):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(steps_for_decay=de)
+    my_config = Config(tunning=True, steps_for_decay=de)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]
     info.append(config_info)

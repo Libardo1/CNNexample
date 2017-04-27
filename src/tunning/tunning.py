@@ -1,6 +1,7 @@
 import os
 import sys
 from random import randint
+import tensorflow as tf
 import numpy as np
 import inspect
 import matplotlib
@@ -37,7 +38,8 @@ info = []
 
 for i, lr in enumerate(LR):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(learning_rate=lr)
+    my_config = Config(tunning=True,
+                       learning_rate=lr)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]
     info.append(config_info)
@@ -92,7 +94,8 @@ info = []
 
 for i, de in enumerate(DECAY):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(decay_rate=de,
+    my_config = Config(tunning=True,
+                       decay_rate=de,
                        learning_rate=learning_rate)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]
@@ -146,7 +149,8 @@ info = []
 
 for i, de in enumerate(DECAY):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(steps_for_decay=de,
+    my_config = Config(tunning=True,
+                       steps_for_decay=de,
                        learning_rate=learning_rate,
                        decay_rate=decay_rate)
     attrs = vars(my_config)
@@ -198,7 +202,8 @@ info = []
 
 for i, ba in enumerate(BATCH_SIZE):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(steps_for_decay=steps_for_decay,
+    my_config = Config(tunning=True,
+                       steps_for_decay=steps_for_decay,
                        learning_rate=learning_rate,
                        decay_rate=decay_rate,
                        batch_size=ba)
@@ -250,7 +255,8 @@ info = []
 
 for i, ps in enumerate(PATCH_SIZE):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(patch_size=ps,
+    my_config = Config(tunning=True,
+                       patch_size=ps,
                        steps_for_decay=steps_for_decay,
                        learning_rate=learning_rate,
                        decay_rate=decay_rate,
@@ -303,7 +309,8 @@ info = []
 
 for i, fi in enumerate(FILTER1):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(num_filters_1=fi,
+    my_config = Config(tunning=True,
+                       num_filters_1=fi,
                        num_filters_2=2 * fi,
                        patch_size=patch_size,
                        steps_for_decay=steps_for_decay,
@@ -360,7 +367,8 @@ info = []
 
 for i, fc in enumerate(FC):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(hidden_nodes_1=3 * fc,
+    my_config = Config(tunning=True,
+                       hidden_nodes_1=3 * fc,
                        hidden_nodes_2=2 * fc,
                        hidden_nodes_3=fc,
                        num_filters_1=num_filters_1,
@@ -425,7 +433,8 @@ info = []
 
 for i, dro in enumerate(DP):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(hidden_nodes_1=hidden_nodes_1,
+    my_config = Config(tunning=True,
+                       hidden_nodes_1=hidden_nodes_1,
                        hidden_nodes_2=hidden_nodes_2,
                        hidden_nodes_3=hidden_nodes_3,
                        num_filters_1=num_filters_1,

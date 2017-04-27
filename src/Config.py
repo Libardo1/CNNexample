@@ -16,7 +16,8 @@ class Config():
                  learning_rate=0.95,
                  steps_for_decay=150,
                  decay_rate=0.96,
-                 dropout=0.75):
+                 dropout=0.75,
+                 tunning=False):
         """
         :type batch_size: int
         :type patch_size: int
@@ -30,6 +31,8 @@ class Config():
         :type learning_rate: float
         :type steps_for_decay: float
         :type decay_rate: float
+        :type dropout: float
+        :type tunning: boolean
         """
         self.batch_size = batch_size
         self.patch_size = patch_size
@@ -45,3 +48,4 @@ class Config():
         self.steps_for_decay = steps_for_decay
         self.decay_rate = decay_rate
         self.dropout = dropout
+        self.tunning = tunning

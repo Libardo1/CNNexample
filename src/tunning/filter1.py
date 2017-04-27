@@ -32,7 +32,7 @@ info = []
 
 for i, fi in enumerate(FILTER1):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(num_filters_1=fi,
+    my_config = Config(tunning=True, num_filters_1=fi,
                        num_filters_2=2 * fi)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]

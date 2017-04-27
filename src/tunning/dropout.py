@@ -35,7 +35,7 @@ info = []
 
 for i, dro in enumerate(DP):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(dropout=dro)
+    my_config = Config(tunning=True, dropout=dro)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]
     info.append(config_info)

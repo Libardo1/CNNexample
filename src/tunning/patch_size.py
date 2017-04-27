@@ -32,7 +32,7 @@ info = []
 
 for i, ps in enumerate(PATCH_SIZE):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(patch_size=ps)
+    my_config = Config(tunning=True, patch_size=ps)
     attrs = vars(my_config)
     config_info = ["%s: %s" % item for item in attrs.items()]
     info.append(config_info)

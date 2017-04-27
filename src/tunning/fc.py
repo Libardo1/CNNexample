@@ -32,7 +32,7 @@ info = []
 
 for i, fc in enumerate(FC):
     print("\n ({0} of {1})".format(i + 1, number_of_exp))
-    my_config = Config(hidden_nodes_1=3 * fc,
+    my_config = Config(tunning=True, hidden_nodes_1=3 * fc,
                        hidden_nodes_2=2 * fc,
                        hidden_nodes_3=fc)
     attrs = vars(my_config)

@@ -40,6 +40,10 @@ class CNNModel:
         self.steps_for_decay = self.config.steps_for_decay
         self.decay_rate = self.config.decay_rate
         self.dropout = self.config.dropout
+        if self.config.tunning:
+            self.random_seed = 0
+        else:
+            self.random_seed = None
         self.build_graph()
 
     def create_placeholders(self):
@@ -93,7 +97,9 @@ class CNNModel:
                       self.patch_size,
                       self.num_channels,
                       self.num_filters_1]
-            self.conv_layer_1_wb = init_wb(shape1, 'Convolution_1')
+            self.conv_layer_1_wb = init_wb(shape1,
+                                           'Convolution_1',
+                                           self.random_seed)
             conv_layer1 = apply_conv(input_tensor,
                                      self.conv_layer_1_wb)
         with tf.name_scope('Max_pooling1'):
@@ -105,7 +111,9 @@ class CNNModel:
                       self.patch_size,
                       self.num_filters_1,
                       self.num_filters_2]
-            self.conv_layer_2_wb = init_wb(shape2, 'Convolution_2')
+            self.conv_layer_2_wb = init_wb(shape2,
+                                           'Convolution_2',
+                                           self.random_seed)
             conv_layer2 = apply_conv(pool_layer1,
                                      self.conv_layer_2_wb)
         with tf.name_scope('Max_pooling2'):
@@ -117,22 +125,30 @@ class CNNModel:
                                  [shape[0], flat])
         with tf.variable_scope('Hidden_Layer_1', reuse=Reuse):
             shape3 = [flat, self.hidden_nodes_1]
-            self.hidden_layer_1_wb = init_wb(shape3, 'Hidden_Layer_1')
+            self.hidden_layer_1_wb = init_wb(shape3,
+                                             'Hidden_Layer_1',
+                                             self.random_seed)
             linear = linear_activation(reshape, self.hidden_layer_1_wb)
             hidden_layer_1 = tf.nn.relu(linear)
         with tf.variable_scope('Hidden_Layer_2', reuse=Reuse):
             shape4 = [self.hidden_nodes_1, self.hidden_nodes_2]
-            self.hidden_layer_2_wb = init_wb(shape4, 'Hidden_Layer_2')
+            self.hidden_layer_2_wb = init_wb(shape4,
+                                             'Hidden_Layer_2',
+                                             self.random_seed)
             linear = linear_activation(hidden_layer_1, self.hidden_layer_2_wb)
             hidden_layer_2 = tf.sigmoid(linear)
         with tf.variable_scope('Hidden_Layer_3', reuse=Reuse):
             shape5 = [self.hidden_nodes_2, self.hidden_nodes_3]
-            self.hidden_layer_3_wb = init_wb(shape5, 'Hidden_Layer_3')
+            self.hidden_layer_3_wb = init_wb(shape5,
+                                             'Hidden_Layer_3',
+                                             self.random_seed)
             linear = linear_activation(hidden_layer_2, self.hidden_layer_3_wb)
             hidden_layer_3 = tf.sigmoid(linear)
         with tf.variable_scope('Output_Layer', reuse=Reuse):
             shape6 = [self.hidden_nodes_3, self.num_labels]
-            self.hidden_layer_4_wb = init_wb(shape6, 'Output_Layer')
+            self.hidden_layer_4_wb = init_wb(shape6,
+                                             'Output_Layer',
+                                             self.random_seed)
             logits = linear_activation(hidden_layer_3,
                                        self.hidden_layer_4_wb)
             return logits
