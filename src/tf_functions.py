@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def init_wb(shape, name, random_seed):
+def init_wb(shape, name, mean, std, random_seed):
     """
     Function initialize one matrix of weights and one bias vector.
 
@@ -10,7 +10,7 @@ def init_wb(shape, name, random_seed):
     :type random_seed: None or int
     :rtype: dictionary
     """
-    Winit = tf.truncated_normal(shape, stddev=0.1, seed=random_seed)
+    Winit = tf.truncated_normal(shape, mean=mean, stddev=std, seed=random_seed)
     binit = tf.zeros(shape[-1])
     layer = {}
     layer["weights"] = tf.get_variable(name + "/weights",
