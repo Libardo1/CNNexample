@@ -429,8 +429,8 @@ def main():
                                valid_labels,
                                test_dataset,
                                test_labels)
-    my_model = CNNModel(my_config, my_dataholder, 4 * 10001, 1000)
-    train_model(my_model, my_dataholder)
+    my_model = CNNModel(my_config, my_dataholder)
+    train_model(my_model, my_dataholder, 4 * 10001, 1000)
     print("check_valid = ", check_valid(my_model))
     print("check_test = ", check_test(my_model))
     one_example = test_dataset[0]
