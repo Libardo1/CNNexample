@@ -410,17 +410,29 @@ def main():
     the prediction of one specific image.
     """
     train_dataset, train_labels, valid_dataset, valid_labels, test_dataset, test_labels = get_data_4d()
-    my_config = Config()
+    # my_config = Config()
+    my_config = Config(learning_rate=0.52660658241,
+                       dropout=0.75,
+                       batch_size=230,
+                       steps_for_decay=800,
+                       num_filters_1=12,
+                       hidden_nodes_3=300,
+                       hidden_nodes_1=900,
+                       decay_rate=0.349144998004,
+                       num_filters_2=24,
+                       patch_size=11,
+                       image_size=28,
+                       hidden_nodes_2=600)
     my_dataholder = DataHolder(train_dataset,
                                train_labels,
                                valid_dataset,
                                valid_labels,
                                test_dataset,
                                test_labels)
-    my_model = CNNModel(my_config, my_dataholder)
-    train_model(my_model, my_dataholder, 301, 150)
+    my_model = CNNModel(my_config, my_dataholder, 4 * 10001, 1000)
+    train_model(my_model, my_dataholder)
     print("check_valid = ", check_valid(my_model))
-    # print("check_test = ", check_test(my_model))
+    print("check_test = ", check_test(my_model))
     one_example = test_dataset[0]
     one_example = one_example.reshape(1,
                                       one_example.shape[0],
